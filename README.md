@@ -1,8 +1,9 @@
 # cloudComputingProject
 read me for project
 
-To start the application, be in the root directory of the project:
 
+# Setup and start
+To start the application, be in the root directory of the project:
 (For Mac and linux)
 chmod +x setup.sh (if its not already executable already)
 
@@ -12,5 +13,4 @@ chmod +x setup.sh (if its not already executable already)
 setup.bat
 
 
-Run this command once the setup is complete to start the FastAPI process:
-python -m uvicorn app.main:app --reload
+Run the corresponding "start.*" script based on your platform, ensuring that it is executable first

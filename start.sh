@@ -11,5 +11,8 @@ fi
 echo "Activating virtual environment..."
 source .venv/bin/activate
 
+echo "Preparing frontend..."
+./scripts/build_frontend.sh
+
 echo "Starting application..."
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

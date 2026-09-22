@@ -10,5 +10,8 @@ if not exist .venv (
 echo Activating virtual environment...
 call .venv\Scripts\activate.bat
 
+echo Preparing frontend...
+call scripts\build_frontend.bat
+
 echo Starting application...
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

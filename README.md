@@ -1,5 +1,6 @@
   # Nebraska Chat
 
+  **PLEASE WORK OFF OF THE DEVELOP BRANCH, commit here before merging to main **
   Nebraska Chat is a FastAPI web application with a vanilla HTML, CSS, and JavaScript frontend.
 
   ## Technology Stack
@@ -52,7 +53,7 @@
   Docker is **not required** for local testing.
 
   **NOTE** reach out to Alejandro for the supabase connection string and admin permissions on the actual database on supabase.
-  
+
   ## macOS/Linux Setup
 
   From the project root:

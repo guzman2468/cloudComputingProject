@@ -1,6 +1,6 @@
   # Nebraska Chat
 
-  **PLEASE WORK OFF OF THE DEVELOP BRANCH, commit here before merging to main **
+  **PLEASE WORK OFF OF THE DEVELOP BRANCH, commit here before merging to main**
   Nebraska Chat is a FastAPI web application with a vanilla HTML, CSS, and JavaScript frontend.
 
   ## Technology Stack

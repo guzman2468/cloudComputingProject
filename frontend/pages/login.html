@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090909" />
+    <title>Log in | MavChat</title>
+    <link rel="stylesheet" href="/static/pages/login.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="brand-panel" aria-label="MavChat introduction">
+        <div class="welcome-heading">
+          <img class="brand-image" src="/static/images/favicon.png" alt="MavChat logo" />
+          <p class="eyebrow">Welcome back</p>
+        </div>
+        <h1>This is MavChat</h1>
+        <p class="brand-copy">
+          Login or sign up to start chatting with your fellow students.
+        </p>
+      </section>
+
+      <section class="form-panel" aria-labelledby="login-title">
+        <div class="form-container">
+          <div class="mobile-brand" aria-hidden="true">
+            <img class="brand-image" src="/static/images/favicon.png" alt="" />
+            <span>MavChat</span>
+          </div>
+
+          <h2 id="login-title">Log in to your account</h2>
+          <p class="form-intro">Enter your details below to continue.</p>
+
+          <form id="login-form" novalidate>
+            <div class="field-group">
+              <label for="email">Email address</label>
+              <input
+                id="email"
+                class="text-input"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="youremail@unomaha.edu"
+                required
+              />
+              <span class="field-error" id="email-error" role="alert"></span>
+            </div>
+
+            <div class="field-group">
+              <div class="password-label-row">
+                <label for="password">Password</label>
+                <a href="#" class="text-link">Forgot password?</a>
+              </div>
+              <div class="password-input-wrap">
+                <input
+                  id="password"
+                  class="text-input"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="Enter your password"
+                  minlength="8"
+                  required
+                />
+                <button class="password-toggle" type="button" aria-label="Show password">
+                  Show
+                </button>
+              </div>
+              <span class="field-error" id="password-error" role="alert"></span>
+            </div>
+
+            <button class="submit-button" type="submit">Log in</button>
+            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+          </form>
+
+          <p class="signup-prompt">
+            Don’t have an account?
+            <a href="/signup" class="text-link">Create one</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/pages/login.js"></script>
+  </body>
+</html>

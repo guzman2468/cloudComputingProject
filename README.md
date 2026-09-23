@@ -1,7 +1,7 @@
-  # Nebraska Chat
+  # MavChat
 
   **PLEASE WORK OFF OF THE DEVELOP BRANCH, commit here before merging to main**\
-  Nebraska Chat is a FastAPI web application with a vanilla HTML, CSS, and JavaScript frontend.
+  MavChat is a FastAPI web application with a vanilla HTML, CSS, and JavaScript frontend.
 
   ## Technology Stack
 
@@ -193,8 +193,11 @@
   ├── __init__.py
   ├── main.py
   ├── database.py
+  ├── templates/       # Generated HTML; not publicly mounted
+  │   ├── login.html
+  │   └── signup.html
   └── static/
-      ├── pages/
+      ├── pages/       # Generated CSS and JavaScript only
       ├── images/
       └── resources/
 
@@ -202,7 +205,15 @@
 
   - app/main.py — Creates the FastAPI application and defines the current routes
   - app/database.py — Configures the SQLAlchemy connection to Supabase PostgreSQL
-  - app/static/ — Generated frontend files served by FastAPI
+  - app/templates/ — Generated HTML returned by explicit FastAPI routes
+  - app/static/ — Generated public frontend assets such as CSS, JavaScript, and images
+
+  HTML pages should be served through explicit routes rather than being placed
+  under the public `/static` mount. This keeps the local workflow simple while
+  allowing future pages to use authentication dependencies. For example, a
+  future protected page should use a route such as `/dashboard` with a
+  `require_user` dependency, and its API endpoints must enforce authorization
+  independently. Frontend redirects are only a user-experience feature.
 
   The current health endpoint is defined in app/main.py:
 
@@ -210,7 +221,7 @@
   def health_check():
       return {
           "status": "ok",
-          "message": "Nebraska Chat is running"
+          "message": "MavChat is running"
       }
 
   The backend/ directory is reserved for future backend organization as the application grows.
@@ -357,4 +368,3 @@
   - Do not manually edit generated files in app/static/.
   - Do not commit .env.
   - Never expose database or S3 credentials to the frontend.
-

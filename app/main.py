@@ -10,21 +10,28 @@ from app.database import engine
 app = FastAPI()
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-HOME_PAGE = STATIC_DIR / "pages" / "home.html"
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+LOGIN_PAGE = TEMPLATES_DIR / "login.html"
+SIGNUP_PAGE = TEMPLATES_DIR / "signup.html"
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
-def home_page():
-    return FileResponse(HOME_PAGE)
+def login_page():
+    return FileResponse(LOGIN_PAGE)
+
+
+@app.get("/signup")
+def signup_page():
+    return FileResponse(SIGNUP_PAGE)
 
 
 @app.get("/api/health")
 def health_check():
     return {
         "status": "ok",
-        "message": "Nebraska Chat is running"
+        "message": "MavChat is running"
     }
 
 

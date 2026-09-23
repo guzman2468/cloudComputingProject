@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090909" />
+    <title>Sign up | MavChat</title>
+    <!-- use the same styles as login, no need to create another file-->
+    <link rel="stylesheet" href="/static/pages/login.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="brand-panel" aria-label="MavChat introduction">
+        <div class="welcome-heading">
+          <img class="brand-image" src="/static/images/favicon.png" alt="MavChat logo" />
+          <p class="eyebrow">Join the conversation</p>
+        </div>
+        <h1>You're a few clicks away!</h1>
+        <p class="brand-copy">
+          Create your MavChat account and start connecting with your community.
+        </p>
+      </section>
+
+      <section class="form-panel" aria-labelledby="signup-title">
+        <div class="form-container">
+          <div class="mobile-brand" aria-hidden="true">
+            <img class="brand-image" src="/static/images/favicon.png" alt="" />
+            <span>MavChat</span>
+          </div>
+
+          <p class="eyebrow">MavChat</p>
+          <h2 id="signup-title">Create your account</h2>
+          <p class="form-intro">Enter your details below to get started.</p>
+
+          <form id="signup-form" novalidate>
+            <div class="field-group">
+              <label for="email">Email address</label>
+              <input
+                id="email"
+                class="text-input"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+              />
+              <span class="field-error" id="email-error" role="alert"></span>
+            </div>
+
+            <div class="field-group">
+              <label for="password">Password</label>
+              <div class="password-input-wrap">
+                <input
+                  id="password"
+                  class="text-input"
+                  name="password"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="At least 8 characters"
+                  minlength="8"
+                  required
+                />
+                <button class="password-toggle" type="button" aria-label="Show password">
+                  Show
+                </button>
+              </div>
+              <span class="field-error" id="password-error" role="alert"></span>
+            </div>
+
+            <div class="field-group">
+              <label for="confirm-password">Confirm password</label>
+              <div class="password-input-wrap">
+                <input
+                  id="confirm-password"
+                  class="text-input"
+                  name="confirm-password"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Re-enter your password"
+                  minlength="8"
+                  required
+                />
+                <button class="password-toggle" type="button" aria-label="Show password">
+                  Show
+                </button>
+              </div>
+              <span class="field-error" id="confirm-password-error" role="alert"></span>
+            </div>
+
+            <button class="submit-button" type="submit">Create account</button>
+            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+          </form>
+
+          <p class="signup-prompt">
+            Already have an account?
+            <a href="/" class="text-link">Log in</a>
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/pages/signup.js"></script>
+  </body>
+</html>

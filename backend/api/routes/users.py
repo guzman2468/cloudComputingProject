@@ -1,17 +1,18 @@
 """User account API routes."""
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from backend.core.security import SESSION_COOKIE, SESSION_MAX_AGE, create_session_token, get_session_email
-from backend.schemas.users import UserCreate, UserCreated, UserLogin, UserLoggedIn, UserProfile
+from backend.schemas.users import UserCreate, UserCreated, UserLogin, UserLoggedIn, UserProfile, UserSearchResult
 from backend.services.users import (
     EmailAlreadyRegistered,
     InvalidCredentials,
     authenticate_user,
     create_user,
     get_user_profile,
+    search_users,
 )
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -68,6 +69,15 @@ def current_user(
     if not profile:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return profile
+
+
+@router.get("/search", response_model=list[UserSearchResult])
+def search_for_users(
+    query: str = Query(min_length=1, max_length=80, alias="q"),
+    email: str = Depends(require_session),
+    db: Session = Depends(get_db),
+) -> list[UserSearchResult]:
+    return search_users(db, query, email)
 
 
 @router.post("/logout")

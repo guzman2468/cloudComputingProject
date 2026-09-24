@@ -31,13 +31,69 @@
       </div>
     </header>
 
-    <main class="home-shell">
-      <section class="home-card" aria-labelledby="home-title">
-        <p class="eyebrow">MavChat</p>
-        <h1 id="home-title">You're logged in.</h1>
-        <p class="home-copy" id="welcome-message">Welcome back. Your account is ready to start chatting.</p>
+    <main class="chat-shell">
+      <section class="chat-app" aria-label="MavChat messages">
+        <aside class="conversation-panel" aria-label="Conversations">
+          <div class="conversation-heading">
+            <div>
+              <p class="eyebrow">Messages</p>
+              <h1 id="home-title">Chats</h1>
+            </div>
+            <button class="icon-button new-chat-button" id="new-chat-button" type="button" aria-label="Start a new chat" title="New chat">+</button>
+          </div>
+
+          <label class="search-field" for="conversation-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="conversation-search" type="search" placeholder="Search messages" autocomplete="off" />
+          </label>
+
+          <div class="conversation-list" id="conversation-list" aria-live="polite"></div>
+        </aside>
+
+        <section class="message-panel" id="message-panel" aria-label="Current conversation">
+          <div class="empty-chat" id="empty-chat" hidden>
+            <div class="empty-chat-icon" aria-hidden="true">✦</div>
+            <h2>Your messages</h2>
+            <p>Send a message to start a conversation.</p>
+            <button class="primary-button" id="empty-new-chat-button" type="button">Start a new chat</button>
+          </div>
+
+          <div class="active-chat" id="active-chat">
+            <header class="chat-header">
+              <button class="back-button" id="back-button" type="button" aria-label="Back to conversations">‹</button>
+              <div class="avatar" id="active-avatar" aria-hidden="true">?</div>
+              <div class="chat-person">
+                <h2 id="active-name">Select a conversation</h2>
+                <p id="active-status">MavChat</p>
+              </div>
+              <button class="chat-info-button" type="button" aria-label="Conversation information">ⓘ</button>
+            </header>
+
+            <div class="message-list" id="message-list" aria-live="polite"></div>
+
+            <form class="message-composer" id="message-form">
+              <button class="composer-icon" type="button" aria-label="Add attachment">＋</button>
+              <input id="message-input" type="text" placeholder="Message..." autocomplete="off" aria-label="Message" />
+              <button class="send-button" type="submit" aria-label="Send message">➤</button>
+            </form>
+          </div>
+        </section>
       </section>
     </main>
+
+    <div class="modal-backdrop" id="new-chat-modal" hidden>
+      <section class="new-chat-modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title">
+        <div class="modal-heading">
+          <h2 id="new-chat-title">New message</h2>
+          <button class="modal-close" id="close-new-chat" type="button" aria-label="Close new message dialog">×</button>
+        </div>
+        <label class="recipient-field" for="recipient-search">
+          <span>To:</span>
+          <input id="recipient-search" type="search" placeholder="Search people" autocomplete="off" />
+        </label>
+        <div class="contact-list" id="contact-list"></div>
+      </section>
+    </div>
 
     <script src="/static/pages/home.js"></script>
   </body>

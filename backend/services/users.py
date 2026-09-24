@@ -81,3 +81,33 @@ def get_user_profile(db: Session, email: str) -> dict[str, str] | None:
         {"email": email},
     ).mappings().one_or_none()
     return dict(row) if row else None
+
+
+def search_users(db: Session, query: str, current_email: str, limit: int = 20) -> list[dict[str, str]]:
+    """Find other users by name or the local part of their email address."""
+    normalized_query = query.strip()
+    if not normalized_query:
+        return []
+
+    rows = db.execute(
+        text(
+            """
+            SELECT email, first_name, last_name
+            FROM public.users
+            WHERE email <> :current_email
+              AND (
+                first_name ILIKE :search_pattern
+                OR last_name ILIKE :search_pattern
+                OR split_part(email, '@', 1) ILIKE :search_pattern
+              )
+            ORDER BY first_name, last_name, email
+            LIMIT :result_limit
+            """
+        ),
+        {
+            "current_email": current_email,
+            "search_pattern": f"%{normalized_query}%",
+            "result_limit": limit,
+        },
+    ).mappings().all()
+    return [dict(row) for row in rows]

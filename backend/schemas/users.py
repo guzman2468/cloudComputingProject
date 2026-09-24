@@ -53,3 +53,7 @@ class UserProfile(BaseModel):
     email: str
     first_name: str
     last_name: str
+
+
+class UserSearchResult(UserProfile):
+    """A user who can be selected when starting a conversation."""

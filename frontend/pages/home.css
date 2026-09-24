@@ -20,6 +20,84 @@ body {
   font-family: Arial, sans-serif;
 }
 
+.site-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 28px;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-image {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 5px 11px 5px 5px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.profile-button:hover,
+.profile-button:focus-visible {
+  border-color: var(--accent);
+}
+
+.profile-initial {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--background);
+  font-weight: 700;
+}
+
+.profile-chevron {
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 140px;
+  padding: 7px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 16px 35px rgb(0 0 0 / 35%);
+}
+
+.profile-dropdown[hidden] {
+  display: none;
+}
+
 .home-shell {
   display: grid;
   min-height: 100vh;
@@ -35,13 +113,6 @@ body {
   background: var(--panel);
   text-align: center;
   box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
-}
-
-.brand-image {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 20px;
-  object-fit: contain;
 }
 
 .eyebrow {
@@ -67,17 +138,30 @@ h1 {
 }
 
 .logout-link {
-  display: inline-block;
+  display: block;
+  width: 100%;
   border: 0;
-  padding: 0;
+  border-radius: 7px;
+  padding: 9px 12px;
   background: transparent;
-  color: var(--accent);
+  color: var(--text);
   cursor: pointer;
-  font-weight: 700;
+  text-align: left;
   font-size: 1rem;
 }
 
 .logout-link:hover,
 .logout-link:focus-visible {
-  text-decoration: underline;
+  background: rgb(215 255 63 / 12%);
+  color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .site-header {
+    padding: 16px 18px;
+  }
+
+  .home-shell {
+    padding: 92px 18px 24px;
+  }
 }

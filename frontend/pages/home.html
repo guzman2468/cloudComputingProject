@@ -8,13 +8,34 @@
     <link rel="stylesheet" href="/static/pages/home.css" />
   </head>
   <body>
+    <header class="site-header">
+      <a class="brand-link" href="/home" aria-label="MavChat home">
+        <img class="brand-image" src="/static/images/favicon.png" alt="University of Nebraska at Omaha logo" />
+      </a>
+
+      <div class="profile-menu">
+        <button
+          class="profile-button"
+          id="profile-button"
+          type="button"
+          aria-expanded="false"
+          aria-controls="profile-dropdown"
+          aria-label="Open account menu"
+        >
+          <span class="profile-initial" id="profile-initial" aria-hidden="true">?</span>
+          <span class="profile-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="profile-dropdown" id="profile-dropdown" hidden>
+          <button class="logout-link" id="logout-button" type="button">Logout</button>
+        </div>
+      </div>
+    </header>
+
     <main class="home-shell">
       <section class="home-card" aria-labelledby="home-title">
-        <img class="brand-image" src="/static/images/favicon.png" alt="MavChat logo" />
         <p class="eyebrow">MavChat</p>
         <h1 id="home-title">You're logged in.</h1>
         <p class="home-copy" id="welcome-message">Welcome back. Your account is ready to start chatting.</p>
-        <button class="logout-link" id="logout-button" type="button">Logout</button>
       </section>
     </main>
 

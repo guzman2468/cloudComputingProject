@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from backend.api.routes.users import router as users_router
+from backend.api.routes.chat import router as chat_router
 from backend.core.security import SESSION_COOKIE, get_session_email
 from backend.core.middleware import PathTraversalMiddleware
 
@@ -39,6 +40,7 @@ HOME_PAGE = TEMPLATES_DIR / "home.html"
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(users_router)
+app.include_router(chat_router)
 
 
 @app.get("/")

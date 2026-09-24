@@ -17,6 +17,7 @@
 body {
   min-height: 100vh;
   margin: 0;
+  overflow: hidden;
   background: var(--background);
   color: var(--text);
   font-family: Arial, sans-serif;
@@ -69,8 +70,8 @@ body {
 
 .profile-initial {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: 50%;
   background: var(--accent);
@@ -88,12 +89,54 @@ body {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  min-width: 140px;
-  padding: 7px;
+  width: min(290px, calc(100vw - 36px));
+  padding: 0;
   border: 1px solid var(--panel-border);
   border-radius: 10px;
   background: var(--panel);
   box-shadow: 0 16px 35px rgb(0 0 0 / 35%);
+}
+
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+}
+
+.profile-summary-avatar {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--background);
+  background: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.profile-details {
+  min-width: 0;
+}
+
+.profile-details strong,
+.profile-details span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-details strong {
+  font-size: 0.95rem;
+}
+
+.profile-details span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .profile-dropdown[hidden] {
@@ -106,22 +149,28 @@ body {
 
 .chat-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   padding: 96px 0 0;
 }
 
 .chat-app {
   display: grid;
-  grid-template-columns: minmax(285px, 0.72fr) minmax(460px, 1.45fr);
+  grid-template-columns: minmax(285px, 0.52fr) minmax(460px, 1.45fr);
   width: 100%;
-  min-height: calc(100vh - 96px);
+  height: calc(100vh - 96px);
+  min-height: 0;
   margin: 0;
   border-top: 1px solid var(--panel-border);
   background: var(--panel);
 }
 
 .conversation-panel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border-right: 1px solid var(--panel-border);
 }
 
@@ -155,6 +204,8 @@ body {
 
 .icon-button,
 .chat-info-button,
+.chat-member-add-button,
+.leave-room-button,
 .back-button,
 .modal-close,
 .composer-icon,
@@ -211,7 +262,21 @@ input::placeholder {
 }
 
 .conversation-list {
+  flex: 1;
+  min-height: 0;
   padding: 0 10px 18px;
+  overflow-y: auto;
+  scrollbar-color: var(--panel-border) transparent;
+  scrollbar-width: thin;
+}
+
+.conversation-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.conversation-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--panel-border);
 }
 
 .conversation-item {
@@ -281,14 +346,22 @@ input::placeholder {
 
 .message-panel {
   position: relative;
+  height: 100%;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .active-chat {
   display: grid;
   grid-template-rows: auto 1fr auto;
   height: 100%;
+  min-height: 0;
+}
+
+.active-chat[hidden],
+.empty-chat[hidden] {
+  display: none;
 }
 
 .chat-header {
@@ -317,6 +390,68 @@ input::placeholder {
   white-space: nowrap;
 }
 
+.chat-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rename-room-button,
+.editor-action {
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.rename-room-button {
+  padding: 2px 4px;
+  opacity: 0;
+  font-size: 0.95rem;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.chat-person:hover .rename-room-button,
+.rename-room-button:focus-visible {
+  opacity: 1;
+}
+
+.rename-room-button:hover,
+.rename-room-button:focus-visible,
+.editor-action:hover,
+.editor-action:focus-visible {
+  color: var(--accent);
+}
+
+.room-name-editor {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.room-name-editor[hidden] {
+  display: none;
+}
+
+.room-name-editor input {
+  width: min(240px, 45vw);
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  outline: 0;
+  padding: 3px 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.editor-action {
+  padding: 2px 4px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .chat-header p {
   margin: 4px 0 0;
   color: var(--muted);
@@ -334,9 +469,25 @@ input::placeholder {
   font-size: 1.3rem;
 }
 
+.chat-member-add-button {
+  color: var(--muted);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
 .chat-info-button:hover,
-.chat-info-button:focus-visible {
+.chat-info-button:focus-visible,
+.chat-member-add-button:hover,
+.chat-member-add-button:focus-visible,
+.leave-room-button:hover,
+.leave-room-button:focus-visible {
   color: var(--accent);
+}
+
+.leave-room-button {
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .message-list {
@@ -363,8 +514,11 @@ input::placeholder {
   justify-content: flex-end;
 }
 
-.message-bubble {
+.message-content {
   max-width: min(72%, 430px);
+}
+
+.message-bubble {
   padding: 10px 14px;
   border-radius: 18px;
   color: var(--text);
@@ -388,6 +542,32 @@ input::placeholder {
 .message-row.sent .message-time {
   color: var(--text);
   text-align: right;
+}
+
+.message-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.message-row.sent .message-author {
+  justify-content: flex-end;
+}
+
+.message-author-avatar {
+  display: grid;
+  width: 21px;
+  height: 21px;
+  place-items: center;
+  border: 1px solid var(--panel-border);
+  border-radius: 50%;
+  color: var(--text);
+  background: var(--bubble);
+  font-size: 0.58rem;
+  font-weight: 700;
 }
 
 .message-composer {
@@ -487,6 +667,10 @@ input::placeholder {
   box-shadow: 0 24px 80px rgb(0 0 0 / 50%);
 }
 
+.room-info-modal {
+  width: min(100%, 460px);
+}
+
 .modal-heading {
   display: flex;
   align-items: center;
@@ -525,6 +709,54 @@ input::placeholder {
 
 .contact-list {
   padding: 10px;
+}
+
+.leave-room-modal {
+  width: min(100%, 400px);
+}
+
+.confirmation-copy {
+  margin: 0;
+  padding: 22px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 0 22px 20px;
+}
+
+.secondary-button,
+.danger-button {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.secondary-button {
+  color: var(--text);
+  background: transparent;
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible {
+  border-color: var(--text);
+}
+
+.danger-button {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent);
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  filter: brightness(1.12);
 }
 
 .contact-option {
@@ -584,6 +816,12 @@ input::placeholder {
   font-size: 1rem;
 }
 
+.profile-dropdown .logout-link {
+  border-top: 1px solid var(--panel-border);
+  border-radius: 0 0 10px 10px;
+  padding: 13px 18px;
+}
+
 .logout-link:hover,
 .logout-link:focus-visible {
   background: rgb(237 28 36 / 12%);
@@ -596,11 +834,14 @@ input::placeholder {
   }
 
   .chat-shell {
+    height: 100vh;
     padding: 84px 0 0;
   }
 
   .chat-app {
-    min-height: calc(100vh - 84px);
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100vh - 84px);
+    min-height: 0;
     border-radius: 0;
   }
 
@@ -622,6 +863,10 @@ input::placeholder {
 
   .back-button {
     display: block;
+  }
+
+  .rename-room-button {
+    opacity: 0.75;
   }
 
   .chat-header {

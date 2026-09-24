@@ -26,6 +26,13 @@
           <span class="profile-chevron" aria-hidden="true">⌄</span>
         </button>
         <div class="profile-dropdown" id="profile-dropdown" hidden>
+          <div class="profile-summary">
+            <span class="profile-summary-avatar" id="profile-summary-avatar" aria-hidden="true">?</span>
+            <div class="profile-details">
+              <strong id="profile-name">MavChat user</strong>
+              <span id="profile-email">Loading account...</span>
+            </div>
+          </div>
           <button class="logout-link" id="logout-button" type="button">Logout</button>
         </div>
       </div>
@@ -51,22 +58,32 @@
         </aside>
 
         <section class="message-panel" id="message-panel" aria-label="Current conversation">
-          <div class="empty-chat" id="empty-chat" hidden>
+          <div class="empty-chat" id="empty-chat">
             <div class="empty-chat-icon" aria-hidden="true">✦</div>
             <h2>Your messages</h2>
             <p>Send a message to start a conversation.</p>
             <button class="primary-button" id="empty-new-chat-button" type="button">Start a new chat</button>
           </div>
 
-          <div class="active-chat" id="active-chat">
+          <div class="active-chat" id="active-chat" hidden>
             <header class="chat-header">
               <button class="back-button" id="back-button" type="button" aria-label="Back to conversations">‹</button>
               <div class="avatar" id="active-avatar" aria-hidden="true">?</div>
               <div class="chat-person">
-                <h2 id="active-name">Select a conversation</h2>
+                <div class="chat-name-row">
+                  <h2 id="active-name">Select a conversation</h2>
+                  <button class="rename-room-button" id="rename-room-button" type="button" aria-label="Rename chat room" title="Rename chat room">✎</button>
+                </div>
+                <form class="room-name-editor" id="room-name-editor" hidden>
+                  <input id="room-name-input" type="text" maxlength="120" autocomplete="off" aria-label="Chat room name" />
+                  <button class="editor-action save-name-button" type="submit" aria-label="Save chat room name">✓</button>
+                  <button class="editor-action cancel-name-button" id="cancel-room-name" type="button" aria-label="Cancel chat room rename">×</button>
+                </form>
                 <p id="active-status">MavChat</p>
               </div>
-              <button class="chat-info-button" type="button" aria-label="Conversation information">ⓘ</button>
+              <button class="chat-info-button" id="chat-info-button" type="button" aria-label="Conversation information">ⓘ</button>
+              <button class="chat-member-add-button" id="add-member-button" type="button" aria-label="Add user to chat room" title="Add user to chat room">⊕</button>
+              <button class="leave-room-button" id="leave-room-button" type="button" aria-label="Leave chat room" title="Leave chat room">⎋</button>
             </header>
 
             <div class="message-list" id="message-list" aria-live="polite"></div>
@@ -92,6 +109,44 @@
           <input id="recipient-search" type="search" placeholder="Search people" autocomplete="off" />
         </label>
         <div class="contact-list" id="contact-list"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="chat-info-modal" hidden>
+      <section class="new-chat-modal room-info-modal" role="dialog" aria-modal="true" aria-labelledby="chat-info-title">
+        <div class="modal-heading">
+          <h2 id="chat-info-title">Chat members</h2>
+          <button class="modal-close" id="close-chat-info" type="button" aria-label="Close chat information">×</button>
+        </div>
+        <div class="contact-list" id="room-member-list"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="add-member-modal" hidden>
+      <section class="new-chat-modal" role="dialog" aria-modal="true" aria-labelledby="add-member-title">
+        <div class="modal-heading">
+          <h2 id="add-member-title">Add to chat</h2>
+          <button class="modal-close" id="close-add-member" type="button" aria-label="Close add user dialog">×</button>
+        </div>
+        <label class="recipient-field" for="member-search">
+          <span>To:</span>
+          <input id="member-search" type="search" placeholder="Search people" autocomplete="off" />
+        </label>
+        <div class="contact-list" id="member-contact-list"></div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="leave-room-modal" hidden>
+      <section class="new-chat-modal leave-room-modal" role="dialog" aria-modal="true" aria-labelledby="leave-room-title">
+        <div class="modal-heading">
+          <h2 id="leave-room-title">Leave chat room?</h2>
+          <button class="modal-close" id="close-leave-room" type="button" aria-label="Close leave chat confirmation">×</button>
+        </div>
+        <p class="confirmation-copy">Are you sure you want to leave this chat room?</p>
+        <div class="modal-actions">
+          <button class="secondary-button" id="cancel-leave-room" type="button">No</button>
+          <button class="danger-button" id="confirm-leave-room" type="button">Yes, leave</button>
+        </div>
       </section>
     </div>
 

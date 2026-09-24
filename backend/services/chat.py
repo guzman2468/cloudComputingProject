@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from backend.schemas.chat import CreateRoomRequest
 
+SYSTEM_MESSAGE_PREFIX = "__MAVCHAT_SYSTEM__ "
+
 
 class ChatNotFound(Exception):
     """Raised when a user cannot access a requested room."""
@@ -14,6 +16,12 @@ class ChatNotFound(Exception):
 
 class ChatValidationError(Exception):
     """Raised when a room or message request cannot be fulfilled."""
+
+
+def _message_payload(content: str) -> tuple[str, bool]:
+    if content.startswith(SYSTEM_MESSAGE_PREFIX):
+        return content[len(SYSTEM_MESSAGE_PREFIX):], True
+    return content, False
 
 
 def _get_user(db: Session, email: str) -> dict[str, int | str] | None:
@@ -38,6 +46,21 @@ def _get_room_members(db: Session, room_id: int) -> list[dict[str, str]]:
         {"room_id": room_id},
     ).mappings().all()
     return [dict(row) for row in rows]
+
+
+def get_room_member_emails(db: Session, room_id: int) -> list[str]:
+    rows = db.execute(
+        text(
+            """
+            SELECT u.email
+            FROM public.room_members rm
+            JOIN public.users u ON u.id = rm.user_id
+            WHERE rm.room_id = :room_id
+            """
+        ),
+        {"room_id": room_id},
+    ).scalars().all()
+    return list(rows)
 
 
 def _assert_room_member(db: Session, room_id: int, user_id: int) -> None:
@@ -101,10 +124,12 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
             "last_message": None,
         }
         if row["last_content"] is not None:
+            last_content, is_system = _message_payload(row["last_content"])
             room["last_message"] = {
-                "content": row["last_content"],
+                "content": last_content,
                 "created_at": row["last_created_at"],
                 "sender_email": row["last_sender_email"],
+                "is_system": is_system,
             }
         rooms.append(room)
     return rooms
@@ -261,6 +286,19 @@ def add_room_member(db: Session, room_id: int, member_email: str, current_email:
                 ),
                 {"room_id": room_id, "user_id": member["id"]},
             )
+            db.execute(
+                text(
+                    """
+                    INSERT INTO public.messages (room_id, sender_id, content)
+                    VALUES (:room_id, :sender_id, :content)
+                    """
+                ),
+                {
+                    "room_id": room_id,
+                    "sender_id": current_user["id"],
+                    "content": f"{SYSTEM_MESSAGE_PREFIX}{member['first_name']} {member['last_name']} has been added to the chat",
+                },
+            )
             db.commit()
 
     room = next((room for room in list_user_rooms(db, current_email) if room["id"] == room_id), None)
@@ -269,11 +307,25 @@ def add_room_member(db: Session, room_id: int, member_email: str, current_email:
     return room
 
 
-def leave_room(db: Session, room_id: int, email: str) -> None:
+def leave_room(db: Session, room_id: int, email: str) -> list[str]:
     user = _get_user(db, email)
     if not user:
         raise ChatNotFound
     _assert_room_member(db, room_id, user["id"])
+    room_member_emails = get_room_member_emails(db, room_id)
+    db.execute(
+        text(
+            """
+            INSERT INTO public.messages (room_id, sender_id, content)
+            VALUES (:room_id, :sender_id, :content)
+            """
+        ),
+        {
+            "room_id": room_id,
+            "sender_id": user["id"],
+            "content": f"{SYSTEM_MESSAGE_PREFIX}{user['first_name']} {user['last_name']} has left the chat",
+        },
+    )
     db.execute(
         text(
             """
@@ -284,6 +336,7 @@ def leave_room(db: Session, room_id: int, email: str) -> None:
         {"room_id": room_id, "user_id": user["id"]},
     )
     db.commit()
+    return room_member_emails
 
 
 def list_messages(db: Session, room_id: int, email: str) -> list[dict]:
@@ -309,7 +362,12 @@ def list_messages(db: Session, room_id: int, email: str) -> list[dict]:
         ),
         {"room_id": room_id},
     ).mappings().all()
-    return [dict(row) for row in rows]
+    messages = []
+    for row in rows:
+        message = dict(row)
+        message["content"], message["is_system"] = _message_payload(message["content"])
+        messages.append(message)
+    return messages
 
 
 def create_message(db: Session, room_id: int, content: str, email: str) -> dict:

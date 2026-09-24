@@ -1,14 +1,31 @@
 """Chat room and message API routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from backend.api.routes.users import require_session
 from backend.schemas.chat import AddRoomMemberRequest, ChatRoom, CreateMessageRequest, CreateRoomRequest, MessageResponse, UpdateRoomRequest
-from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, leave_room, list_messages, list_user_rooms, rename_room, search_user_rooms
+from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, get_room_member_emails, leave_room, list_messages, list_user_rooms, rename_room, search_user_rooms
+from backend.services.chat_socket import chat_connection_manager
+from backend.core.security import SESSION_COOKIE, get_session_email
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+@router.websocket("/socket")
+async def chat_socket(websocket: WebSocket):
+    email = get_session_email(websocket.cookies.get(SESSION_COOKIE))
+    if not email:
+        await websocket.close(code=1008)
+        return
+
+    await chat_connection_manager.connect(email, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        chat_connection_manager.disconnect(email, websocket)
 
 
 @router.get("/rooms", response_model=list[ChatRoom])
@@ -26,27 +43,38 @@ def search_rooms(
 
 
 @router.post("/rooms", response_model=ChatRoom, status_code=status.HTTP_201_CREATED)
-def add_room(
+async def add_room(
     room_request: CreateRoomRequest,
     email: str = Depends(require_session),
     db: Session = Depends(get_db),
 ) -> ChatRoom:
     try:
-        return create_room(db, room_request, email)
+        room = create_room(db, room_request, email)
+        await chat_connection_manager.broadcast(
+            [member["email"] for member in room["members"]],
+            {"type": "room.created", "room_id": room["id"]},
+        )
+        return room
     except ChatValidationError as error:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.patch("/rooms/{room_id}", response_model=ChatRoom)
-def update_room_name(
+async def update_room_name(
     room_id: int,
     room_request: UpdateRoomRequest,
     email: str = Depends(require_session),
     db: Session = Depends(get_db),
 ) -> ChatRoom:
     try:
-        return rename_room(db, room_id, room_request.name, email)
+        room = rename_room(db, room_id, room_request.name, email)
+        # Broadcast after the database commit so listeners can immediately load the new name.
+        await chat_connection_manager.broadcast(
+            [member["email"] for member in room["members"]],
+            {"type": "room.renamed", "room_id": room_id},
+        )
+        return room
     except ChatNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
     except ChatValidationError as error:
@@ -54,14 +82,24 @@ def update_room_name(
 
 
 @router.post("/rooms/{room_id}/members", response_model=ChatRoom)
-def add_member_to_room(
+async def add_member_to_room(
     room_id: int,
     member_request: AddRoomMemberRequest,
     email: str = Depends(require_session),
     db: Session = Depends(get_db),
 ) -> ChatRoom:
     try:
-        return add_room_member(db, room_id, member_request.member_email, email)
+        room = add_room_member(db, room_id, member_request.member_email, email)
+        await chat_connection_manager.broadcast(
+            [member["email"] for member in room["members"]],
+            {
+                "type": "room.member_changed",
+                "change": "added",
+                "room_id": room_id,
+                "member_email": member_request.member_email.strip().lower(),
+            },
+        )
+        return room
     except ChatNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room or user not found") from error
     except ChatValidationError as error:
@@ -69,13 +107,22 @@ def add_member_to_room(
 
 
 @router.delete("/rooms/{room_id}/members/me", status_code=status.HTTP_204_NO_CONTENT)
-def leave_chat_room(
+async def leave_chat_room(
     room_id: int,
     email: str = Depends(require_session),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
-        leave_room(db, room_id, email)
+        member_emails = leave_room(db, room_id, email)
+        await chat_connection_manager.broadcast(
+            member_emails,
+            {
+                "type": "room.member_changed",
+                "change": "left",
+                "room_id": room_id,
+                "member_email": email,
+            },
+        )
     except ChatNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -94,14 +141,20 @@ def get_room_messages(
 
 
 @router.post("/rooms/{room_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def add_message(
+async def add_message(
     room_id: int,
     message_request: CreateMessageRequest,
     email: str = Depends(require_session),
     db: Session = Depends(get_db),
 ) -> MessageResponse:
     try:
-        return create_message(db, room_id, message_request.content, email)
+        message = create_message(db, room_id, message_request.content, email)
+        member_emails = get_room_member_emails(db, room_id)
+        await chat_connection_manager.broadcast(
+            member_emails,
+            {"type": "message.created", "room_id": room_id},
+        )
+        return message
     except ChatNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
     except ChatValidationError as error:

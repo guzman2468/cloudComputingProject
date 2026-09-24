@@ -15,6 +15,7 @@ class LastMessage(BaseModel):
     content: str
     created_at: datetime
     sender_email: str
+    is_system: bool = False
 
 
 class ChatRoom(BaseModel):
@@ -46,6 +47,7 @@ class MessageResponse(BaseModel):
     sender_name: str
     content: str
     created_at: datetime
+    is_system: bool = False
 
 
 class CreateMessageRequest(BaseModel):

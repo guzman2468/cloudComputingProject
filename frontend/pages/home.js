@@ -33,6 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
   let memberSearchController;
   let memberSearchRequestId = 0;
   let messageRequestId = 0;
+  let chatSocket;
+  let chatSocketReconnectTimer;
+  let pendingSocketSync = false;
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
@@ -91,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     messageList.innerHTML = messages.length ? `
       <p class="message-date">Messages</p>
       ${messages.map((message) => {
+        if (message.is_system) return `<div class="system-message">${escapeHtml(message.content)}</div>`;
         const sent = message.sender_email.toLowerCase() === currentUserEmail.toLowerCase();
         return `<div class="message-row ${sent ? "sent" : "received"}">
           <div class="message-content">
@@ -139,6 +143,62 @@ document.addEventListener("DOMContentLoaded", () => {
       activeRoomId = null;
       showEmptyChat();
     }
+  };
+
+  const syncFromSocketEvent = async (payload) => {
+    const roomId = Number(payload.room_id);
+    if (payload.change === "left" && payload.member_email.toLowerCase() === currentUserEmail.toLowerCase()) {
+      conversations = conversations.filter((room) => room.id !== roomId);
+      displayedConversations = displayedConversations.filter((room) => room.id !== roomId);
+      activeRoomId = null;
+      chatApp.classList.remove("show-messages");
+      showEmptyChat();
+      renderConversations();
+      return;
+    }
+    if (!roomNameEditor.hidden) {
+      pendingSocketSync = true;
+      return;
+    }
+    const selectedRoomId = activeRoomId;
+    try {
+      if (conversationSearch.value.trim()) await searchRooms();
+      else await loadRooms();
+      if (selectedRoomId && activeRoomId === selectedRoomId && conversations.some((room) => room.id === selectedRoomId)) {
+        await loadMessages(selectedRoomId);
+      }
+      if (!chatInfoModal.hidden) {
+      const room = conversations.find((item) => item.id === roomId);
+        if (room) renderRoomMembers(room);
+      }
+    } catch {
+      // Keep the current UI visible if an event refresh briefly fails.
+    }
+  };
+
+  const flushPendingSocketSync = () => {
+    if (pendingSocketSync && roomNameEditor.hidden) {
+      pendingSocketSync = false;
+      syncFromSocketEvent({ room_id: activeRoomId });
+    }
+  };
+
+  const connectChatSocket = () => {
+    if (!currentUserEmail) return;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    chatSocket = new WebSocket(`${protocol}//${window.location.host}/api/chat/socket`);
+    chatSocket.addEventListener("message", (event) => {
+      const payload = JSON.parse(event.data);
+      if (["room.created", "message.created", "room.member_changed", "room.renamed"].includes(payload.type)) {
+        syncFromSocketEvent(payload);
+      }
+    });
+    chatSocket.addEventListener("close", () => {
+      chatSocket = null;
+      if (currentUserEmail) {
+        chatSocketReconnectTimer = window.setTimeout(connectChatSocket, 2000);
+      }
+    });
   };
 
   const searchRooms = async () => {
@@ -342,6 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#cancel-room-name").addEventListener("click", () => {
     roomNameEditor.hidden = true;
     activeName.hidden = false;
+    flushPendingSocketSync();
   });
   roomNameEditor.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -358,6 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.assign(room, updatedRoom);
     renderConversations();
     renderActiveHeader(room);
+    flushPendingSocketSync();
   });
   recipientSearch.addEventListener("input", searchContacts);
   contactList.addEventListener("click", async (event) => {
@@ -408,6 +470,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelector("#profile-email").textContent = user.email;
       profileButton.setAttribute("aria-label", `Open account menu for ${user.first_name}`);
       await loadRooms();
+      connectChatSocket();
     })
     .catch(() => { window.location.href = "/"; });
 });

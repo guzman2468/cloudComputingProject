@@ -34,6 +34,20 @@
 
           <form id="signup-form" novalidate>
             <div class="field-group">
+              <label for="first-name">First name</label>
+              <input id="first-name" class="text-input" name="first_name" type="text"
+                autocomplete="given-name" maxlength="50" placeholder="Your First Name" required />
+              <span class="field-error" id="first-name-error" role="alert"></span>
+            </div>
+
+            <div class="field-group">
+              <label for="last-name">Last name</label>
+              <input id="last-name" class="text-input" name="last_name" type="text"
+                autocomplete="family-name" maxlength="50" placeholder="Your Last Name" required />
+              <span class="field-error" id="last-name-error" role="alert"></span>
+            </div>
+
+            <div class="field-group">
               <label for="email">Email address</label>
               <input
                 id="email"
@@ -41,7 +55,8 @@
                 name="email"
                 type="email"
                 autocomplete="email"
-                placeholder="you@example.com"
+                placeholder="jdoe@unomaha.edu"
+                maxlength="50"
                 required
               />
               <span class="field-error" id="email-error" role="alert"></span>

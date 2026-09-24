@@ -65,6 +65,25 @@
 
   DATABASE_URL=your_supabase_database_connection_string
 
+  Generate a strong session secret and add it to .env:
+
+  ```bash
+  openssl rand -hex 32
+  ```
+
+  Then add the generated value:
+
+  SESSION_SECRET=your_generated_secret
+
+  The `openssl` command works on macOS/Linux and also works in Git Bash on Windows.
+  In Windows PowerShell, if OpenSSL is unavailable, generate one with:
+
+  ```powershell
+  $bytes = New-Object byte[] 32
+  [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  [Convert]::ToHexString($bytes).ToLower()
+  ```
+
   Do not commit .env to Git.
 
   Make the scripts executable:
@@ -86,6 +105,19 @@
   Add the Supabase database connection string:
 
   DATABASE_URL=your_supabase_database_connection_string
+
+  Generate a strong session secret with either `openssl rand -hex 32` in Git Bash,
+  or the following PowerShell command if OpenSSL is unavailable:
+
+  ```powershell
+  $bytes = New-Object byte[] 32
+  [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  [Convert]::ToHexString($bytes).ToLower()
+  ```
+
+  Add the generated value to .env:
+
+  SESSION_SECRET=your_generated_secret
 
   Do not commit .env to Git.
 
@@ -309,6 +341,7 @@
   Example:
 
   DATABASE_URL=your_supabase_database_connection_string
+  SESSION_SECRET=your_generated_secret
   S3_ENDPOINT_URL=your_s3_endpoint
   S3_REGION=your_s3_region
   S3_BUCKET_NAME=your_bucket_name

@@ -7,6 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const formMessage = document.querySelector("#form-message");
   const passwordToggle = document.querySelector(".password-toggle");
 
+  fetch("/api/users/currentUser", { cache: "no-store" }).then((response) => {
+    if (response.ok) {
+      window.location.replace("/home");
+    }
+  });
+
   passwordToggle.addEventListener("click", () => {
     const isPassword = password.type === "password";
     password.type = isPassword ? "text" : "password";
@@ -17,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   });
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     emailError.textContent = "";
     passwordError.textContent = "";
@@ -26,9 +32,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let isValid = true;
 
-    if (!email.validity.valid) {
+    const normalizedEmail = email.value.trim().toLowerCase();
+
+    if (!email.validity.valid || !normalizedEmail.endsWith("@unomaha.edu")) {
       emailError.textContent = email.value
-        ? "Enter a valid email address."
+        ? "Please use your @unomaha.edu email address."
         : "Email address is required.";
       isValid = false;
     }
@@ -45,8 +53,34 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Authentication is not connected yet. This confirms that the frontend form works.
-    formMessage.textContent = "Your login details are ready to be submitted.";
-    formMessage.classList.add("success");
+    const submitButton = form.querySelector(".submit-button");
+    submitButton.disabled = true;
+    submitButton.textContent = "Logging in...";
+
+    try {
+      const response = await fetch("/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.value.trim().toLowerCase(),
+          password: password.value,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        formMessage.textContent = result.detail || "Invalid credentials, please try again.";
+        return;
+      }
+
+      formMessage.textContent = `Welcome back, ${result.first_name}!`;
+      formMessage.classList.add("success");
+      window.location.href = "/home";
+    } catch (error) {
+      formMessage.textContent = "Unable to reach the server. Please try again.";
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Log in";
+    }
   });
 });

@@ -18,6 +18,9 @@ class ChatConnectionManager:
         if not self.connections[email]:
             del self.connections[email]
 
+    def active_connections(self, email: str) -> int:
+        return len(self.connections.get(email, set()))
+
     async def broadcast(self, emails: list[str], event: dict) -> None:
         disconnected: list[tuple[str, WebSocket]] = []
         for email in set(emails):

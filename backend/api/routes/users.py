@@ -1,6 +1,6 @@
 """User account API routes."""
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -14,11 +14,12 @@ from backend.services.users import (
     get_user_profile,
     search_users,
 )
+from backend.core.rate_limit import login_rate_limit, registration_rate_limit, user_search_rate_limit
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 
-@router.post("", response_model=UserCreated, status_code=status.HTTP_200_OK)
+@router.post("", response_model=UserCreated, status_code=status.HTTP_200_OK, dependencies=[Depends(registration_rate_limit)])
 def register_user(user_data: UserCreate, db: Session = Depends(get_db)) -> UserCreated:
     try:
         return create_user(db, user_data)
@@ -32,9 +33,11 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)) -> UserC
 @router.post("/login", response_model=UserLoggedIn)
 def login_user(
     login_data: UserLogin,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ) -> UserLoggedIn:
+    login_rate_limit(request, login_data.email)
     try:
         user = authenticate_user(db, login_data)
         response.set_cookie(
@@ -71,7 +74,7 @@ def current_user(
     return profile
 
 
-@router.get("/search", response_model=list[UserSearchResult])
+@router.get("/search", response_model=list[UserSearchResult], dependencies=[Depends(user_search_rate_limit)])
 def search_for_users(
     query: str = Query(min_length=1, max_length=80, alias="q"),
     email: str = Depends(require_session),

@@ -9,14 +9,31 @@ from backend.schemas.chat import AddRoomMemberRequest, ChatRoom, CreateMessageRe
 from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, get_room_member_emails, hide_room_for_user, leave_room, list_messages, list_user_rooms, remove_room_member, rename_room, search_user_rooms
 from backend.services.chat_socket import chat_connection_manager
 from backend.core.security import SESSION_COOKIE, get_session_email
+from backend.core.rate_limit import (
+    message_read_rate_limit,
+    message_send_rate_limit,
+    room_create_rate_limit,
+    room_mutation_rate_limit,
+    room_read_rate_limit,
+    room_search_rate_limit,
+    websocket_ip_rate_limit,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
 @router.websocket("/socket")
 async def chat_socket(websocket: WebSocket):
+    try:
+        websocket_ip_rate_limit(websocket)
+    except HTTPException:
+        await websocket.close(code=1013)
+        return
     email = get_session_email(websocket.cookies.get(SESSION_COOKIE))
     if not email:
+        await websocket.close(code=1008)
+        return
+    if chat_connection_manager.active_connections(email) >= 3:
         await websocket.close(code=1008)
         return
 
@@ -28,12 +45,12 @@ async def chat_socket(websocket: WebSocket):
         chat_connection_manager.disconnect(email, websocket)
 
 
-@router.get("/rooms", response_model=list[ChatRoom])
+@router.get("/rooms", response_model=list[ChatRoom], dependencies=[Depends(room_read_rate_limit)])
 def get_rooms(email: str = Depends(require_session), db: Session = Depends(get_db)) -> list[ChatRoom]:
     return list_user_rooms(db, email)
 
 
-@router.get("/rooms/search", response_model=list[ChatRoom])
+@router.get("/rooms/search", response_model=list[ChatRoom], dependencies=[Depends(room_search_rate_limit)])
 def search_rooms(
     query: str = Query(min_length=1, max_length=80, alias="q"),
     email: str = Depends(require_session),
@@ -42,7 +59,7 @@ def search_rooms(
     return search_user_rooms(db, query, email)
 
 
-@router.post("/rooms", response_model=ChatRoom, status_code=status.HTTP_201_CREATED)
+@router.post("/rooms", response_model=ChatRoom, status_code=status.HTTP_201_CREATED, dependencies=[Depends(room_create_rate_limit)])
 async def add_room(
     room_request: CreateRoomRequest,
     email: str = Depends(require_session),
@@ -60,7 +77,7 @@ async def add_room(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
-@router.patch("/rooms/{room_id}", response_model=ChatRoom)
+@router.patch("/rooms/{room_id}", response_model=ChatRoom, dependencies=[Depends(room_mutation_rate_limit)])
 async def update_room_name(
     room_id: int,
     room_request: UpdateRoomRequest,
@@ -81,7 +98,7 @@ async def update_room_name(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
-@router.post("/rooms/{room_id}/members", response_model=ChatRoom)
+@router.post("/rooms/{room_id}/members", response_model=ChatRoom, dependencies=[Depends(room_mutation_rate_limit)])
 async def add_member_to_room(
     room_id: int,
     member_request: AddRoomMemberRequest,
@@ -106,7 +123,7 @@ async def add_member_to_room(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
-@router.delete("/rooms/{room_id}/members/me", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/rooms/{room_id}/members/me", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(room_mutation_rate_limit)])
 async def leave_chat_room(
     room_id: int,
     email: str = Depends(require_session),
@@ -128,7 +145,7 @@ async def leave_chat_room(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/rooms/{room_id}/members/{member_email}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/rooms/{room_id}/members/{member_email}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(room_mutation_rate_limit)])
 async def remove_chat_room_member(
     room_id: int,
     member_email: str,
@@ -154,7 +171,7 @@ async def remove_chat_room_member(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/rooms/{room_id}/visibility", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/rooms/{room_id}/visibility", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(room_mutation_rate_limit)])
 def hide_chat_room(
     room_id: int,
     email: str = Depends(require_session),
@@ -167,7 +184,7 @@ def hide_chat_room(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/rooms/{room_id}/messages", response_model=list[MessageResponse])
+@router.get("/rooms/{room_id}/messages", response_model=list[MessageResponse], dependencies=[Depends(message_read_rate_limit)])
 def get_room_messages(
     room_id: int,
     email: str = Depends(require_session),
@@ -179,7 +196,7 @@ def get_room_messages(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
 
 
-@router.post("/rooms/{room_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/rooms/{room_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(message_send_rate_limit)])
 async def add_message(
     room_id: int,
     message_request: CreateMessageRequest,

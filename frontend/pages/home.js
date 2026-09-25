@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatInfoModal = document.querySelector("#chat-info-modal");
   const addMemberModal = document.querySelector("#add-member-modal");
   const leaveRoomModal = document.querySelector("#leave-room-modal");
+  const removeMemberModal = document.querySelector("#remove-member-modal");
+  const hideRoomModal = document.querySelector("#hide-room-modal");
   const recipientSearch = document.querySelector("#recipient-search");
   const contactList = document.querySelector("#contact-list");
   const roomMemberList = document.querySelector("#room-member-list");
@@ -21,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const roomNameInput = document.querySelector("#room-name-input");
   const activeName = document.querySelector("#active-name");
   const roomNameEditor = document.querySelector("#room-name-editor");
+  const removeMemberCopy = document.querySelector("#remove-member-copy");
 
   let currentUserEmail = "";
   let conversations = [];
@@ -36,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let chatSocket;
   let chatSocketReconnectTimer;
   let pendingSocketSync = false;
+  let pendingRemoveMember = null;
+  let pendingHideRoomId = null;
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
@@ -56,14 +61,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const renderConversations = () => {
     const visible = displayedConversations;
     conversationList.innerHTML = visible.length ? visible.map((room) => `
-      <button class="conversation-item ${room.id === activeRoomId ? "active" : ""}" type="button" data-room-id="${room.id}">
-        <span class="avatar" style="background: ${roomColor(room)}" aria-hidden="true">${escapeHtml(initials(roomName(room)))}</span>
-        <span class="conversation-details">
-          <span class="conversation-name">${escapeHtml(roomName(room))}</span>
-          <span class="conversation-preview">${escapeHtml(lastMessageText(room))}</span>
-        </span>
-        <span class="conversation-time">${escapeHtml(formatTime(room.last_message?.created_at || room.created_at))}</span>
-      </button>`).join("") : '<p class="no-results">No conversations found.</p>';
+      <div class="conversation-item ${room.id === activeRoomId ? "active" : ""}">
+        <button class="conversation-select" type="button" data-room-id="${room.id}" aria-label="Open ${escapeHtml(roomName(room))}">
+          <span class="avatar" style="background: ${roomColor(room)}" aria-hidden="true">${escapeHtml(initials(roomName(room)))}</span>
+          <span class="conversation-details">
+            <span class="conversation-name">${escapeHtml(roomName(room))}${room.is_removed ? " <span class=\"removed-label\">Removed</span>" : ""}</span>
+            <span class="conversation-preview">${escapeHtml(lastMessageText(room))}</span>
+          </span>
+          <span class="conversation-time">${escapeHtml(formatTime(room.last_message?.created_at || room.created_at))}</span>
+        </button>
+        <button class="conversation-remove-button" type="button" data-hide-room-id="${room.id}" aria-label="Remove ${escapeHtml(roomName(room))} from your chat list" title="Remove chat from list">×</button>
+      </div>`).join("") : '<p class="no-results">No conversations found.</p>';
   };
 
   const showEmptyChat = () => {
@@ -85,7 +93,15 @@ document.addEventListener("DOMContentLoaded", () => {
     activeName.textContent = roomName(room);
     roomNameEditor.hidden = true;
     activeName.hidden = false;
-    document.querySelector("#active-status").textContent = `${room.members.length} member${room.members.length === 1 ? "" : "s"}`;
+    document.querySelector("#active-status").textContent = room.is_removed
+      ? "You were removed from this chat"
+      : `${room.members.length} member${room.members.length === 1 ? "" : "s"}`;
+    messageInput.disabled = room.is_removed;
+    messageInput.placeholder = room.is_removed ? "You can no longer send messages" : "Message...";
+    document.querySelector("#send-button").disabled = room.is_removed;
+    document.querySelector("#rename-room-button").hidden = room.is_removed;
+    document.querySelector("#add-member-button").hidden = room.is_removed;
+    document.querySelector("#leave-room-button").hidden = room.is_removed;
     document.querySelector("#empty-chat").hidden = true;
     document.querySelector("#active-chat").hidden = false;
   };
@@ -281,12 +297,47 @@ document.addEventListener("DOMContentLoaded", () => {
     leaveRoomModal.hidden = !isOpen;
   };
 
+  const setRemoveMemberOpen = (isOpen, member = null) => {
+    pendingRemoveMember = isOpen ? member : null;
+    if (isOpen && member) {
+      const fullName = `${member.first_name} ${member.last_name}`;
+      removeMemberCopy.textContent = `Are you sure you would like to remove ${fullName} from the chat?`;
+    }
+    removeMemberModal.hidden = !isOpen;
+  };
+
+  const hideRoomFromList = async (roomId) => {
+    const response = await fetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/visibility`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Unable to remove chat from list");
+    conversations = conversations.filter((room) => room.id !== roomId);
+    displayedConversations = displayedConversations.filter((room) => room.id !== roomId);
+    if (activeRoomId === roomId) {
+      activeRoomId = null;
+      chatApp.classList.remove("show-messages");
+      showEmptyChat();
+    }
+    renderConversations();
+  };
+
+  const setHideRoomOpen = (isOpen, roomId = null) => {
+    pendingHideRoomId = isOpen ? roomId : null;
+    hideRoomModal.hidden = !isOpen;
+  };
+
   const renderRoomMembers = (room) => {
-    roomMemberList.innerHTML = room.members.map((member) => `
+    const isCreator = room.created_by_email.toLowerCase() === currentUserEmail.toLowerCase();
+    roomMemberList.innerHTML = room.members.map((member) => {
+      const fullName = `${member.first_name} ${member.last_name}`;
+      const isCurrentUser = member.email.toLowerCase() === currentUserEmail.toLowerCase();
+      const removeButton = isCreator && !isCurrentUser ? `
+          <button class="remove-member-button" type="button" data-remove-member-email="${escapeHtml(member.email)}" aria-label="Remove ${escapeHtml(fullName)} from chat" title="Remove ${escapeHtml(fullName)} from chat">×</button>` : "";
+      return `
       <div class="contact-option">
-        <span class="avatar" style="background: ${roomColor(room)}" aria-hidden="true">${escapeHtml(initials(`${member.first_name} ${member.last_name}`))}</span>
-        <span class="contact-meta"><strong>${escapeHtml(member.first_name)} ${escapeHtml(member.last_name)}</strong><span>${escapeHtml(member.email)}</span></span>
-      </div>`).join("");
+        <span class="avatar" style="background: ${roomColor(room)}" aria-hidden="true">${escapeHtml(initials(fullName))}</span>
+        <span class="contact-meta"><strong>${escapeHtml(fullName)}</strong><span>${escapeHtml(member.email)}</span></span>
+        ${removeButton}
+      </div>`;
+    }).join("");
   };
 
   const renderMemberSearchMessage = (message) => { memberContactList.innerHTML = `<p class="no-results">${message}</p>`; };
@@ -331,9 +382,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === chatInfoModal) setChatInfoOpen(false);
     if (event.target === addMemberModal) setAddMemberOpen(false);
     if (event.target === leaveRoomModal) setLeaveRoomOpen(false);
+    if (event.target === removeMemberModal) setRemoveMemberOpen(false);
+    if (event.target === hideRoomModal) setHideRoomOpen(false);
   });
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setMenuOpen(false); setModalOpen(false); setChatInfoOpen(false); setAddMemberOpen(false); setLeaveRoomOpen(false); } });
-  conversationList.addEventListener("click", (event) => { const item = event.target.closest("[data-room-id]"); if (item) selectConversation(Number(item.dataset.roomId)); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setMenuOpen(false); setModalOpen(false); setChatInfoOpen(false); setAddMemberOpen(false); setLeaveRoomOpen(false); setRemoveMemberOpen(false); setHideRoomOpen(false); } });
+  conversationList.addEventListener("click", async (event) => {
+    const hideButton = event.target.closest("[data-hide-room-id]");
+    if (hideButton) {
+      setHideRoomOpen(true, Number(hideButton.dataset.hideRoomId));
+      return;
+    }
+    const item = event.target.closest("[data-room-id]");
+    if (item) selectConversation(Number(item.dataset.roomId));
+  });
   conversationSearch.addEventListener("input", searchRooms);
   document.querySelector("#new-chat-button").addEventListener("click", () => setModalOpen(true));
   document.querySelector("#empty-new-chat-button").addEventListener("click", () => setModalOpen(true));
@@ -354,6 +415,44 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector("#close-leave-room").addEventListener("click", () => setLeaveRoomOpen(false));
   document.querySelector("#cancel-leave-room").addEventListener("click", () => setLeaveRoomOpen(false));
+  document.querySelector("#close-remove-member").addEventListener("click", () => setRemoveMemberOpen(false));
+  document.querySelector("#cancel-remove-member").addEventListener("click", () => setRemoveMemberOpen(false));
+  document.querySelector("#close-hide-room").addEventListener("click", () => setHideRoomOpen(false));
+  document.querySelector("#cancel-hide-room").addEventListener("click", () => setHideRoomOpen(false));
+  document.querySelector("#confirm-hide-room").addEventListener("click", async () => {
+    if (pendingHideRoomId === null) return;
+    const roomId = pendingHideRoomId;
+    try {
+      await hideRoomFromList(roomId);
+      setHideRoomOpen(false);
+    } catch {
+      setHideRoomOpen(false);
+    }
+  });
+  roomMemberList.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-remove-member-email]");
+    if (!removeButton) return;
+    const room = conversations.find((item) => item.id === activeRoomId);
+    const member = room?.members.find((item) => item.email.toLowerCase() === removeButton.dataset.removeMemberEmail.toLowerCase());
+    if (member) setRemoveMemberOpen(true, member);
+  });
+  document.querySelector("#confirm-remove-member").addEventListener("click", async () => {
+    if (!activeRoomId || !pendingRemoveMember) return;
+    const roomId = activeRoomId;
+    try {
+      const response = await fetch(`/api/chat/rooms/${encodeURIComponent(roomId)}/members/${encodeURIComponent(pendingRemoveMember.email)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Unable to remove room member");
+      setRemoveMemberOpen(false);
+      await loadRooms();
+      const room = conversations.find((item) => item.id === roomId);
+      if (room) {
+        renderRoomMembers(room);
+        await loadMessages(roomId);
+      }
+    } catch {
+      removeMemberCopy.textContent = "Unable to remove this person. Please try again.";
+    }
+  });
   document.querySelector("#confirm-leave-room").addEventListener("click", async () => {
     if (!activeRoomId) return;
     const roomId = activeRoomId;
@@ -445,6 +544,8 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     const content = messageInput.value.trim();
     if (!content || !activeRoomId) return;
+    const room = conversations.find((item) => item.id === activeRoomId);
+    if (room?.is_removed) return;
     const response = await fetch(`/api/chat/rooms/${encodeURIComponent(activeRoomId)}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

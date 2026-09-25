@@ -25,6 +25,7 @@ class ChatRoom(BaseModel):
     created_at: datetime
     members: list[RoomMember]
     last_message: LastMessage | None = None
+    is_removed: bool = False
 
 
 class CreateRoomRequest(BaseModel):

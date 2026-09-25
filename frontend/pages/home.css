@@ -282,15 +282,13 @@ input::placeholder {
 .conversation-item {
   display: flex;
   align-items: center;
-  gap: 12px;
   width: 100%;
-  padding: 11px 12px;
+  padding: 0;
   border: 0;
   border-radius: 10px;
   color: var(--text);
   text-align: left;
   background: transparent;
-  cursor: pointer;
 }
 
 .conversation-item:hover,
@@ -298,6 +296,56 @@ input::placeholder {
 .conversation-item:focus-visible {
   background: var(--panel-hover);
   outline: none;
+}
+
+.conversation-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+  padding: 11px 8px 11px 12px;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.conversation-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.conversation-remove-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-right: 8px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.conversation-remove-button:hover,
+.conversation-remove-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.removed-label {
+  margin-left: 5px;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 .avatar {
@@ -611,6 +659,11 @@ input::placeholder {
   font-size: 0.85rem;
 }
 
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .empty-chat {
   display: grid;
   height: 100%;
@@ -803,6 +856,29 @@ input::placeholder {
   margin-top: 3px;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.remove-member-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.remove-member-button:hover,
+.remove-member-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
 }
 
 .no-results {

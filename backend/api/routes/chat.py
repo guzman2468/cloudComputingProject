@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from backend.api.routes.users import require_session
 from backend.schemas.chat import AddRoomMemberRequest, ChatRoom, CreateMessageRequest, CreateRoomRequest, MessageResponse, UpdateRoomRequest
-from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, get_room_member_emails, leave_room, list_messages, list_user_rooms, rename_room, search_user_rooms
+from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, get_room_member_emails, hide_room_for_user, leave_room, list_messages, list_user_rooms, remove_room_member, rename_room, search_user_rooms
 from backend.services.chat_socket import chat_connection_manager
 from backend.core.security import SESSION_COOKIE, get_session_email
 
@@ -123,6 +123,45 @@ async def leave_chat_room(
                 "member_email": email,
             },
         )
+    except ChatNotFound as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/rooms/{room_id}/members/{member_email}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_chat_room_member(
+    room_id: int,
+    member_email: str,
+    email: str = Depends(require_session),
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        removal = remove_room_member(db, room_id, member_email, email)
+        await chat_connection_manager.broadcast(
+            removal["member_emails"],
+            {
+                "type": "room.member_changed",
+                "change": "removed",
+                "room_id": room_id,
+                "member_email": removal["removed_email"],
+                "member_name": removal["removed_name"],
+            },
+        )
+    except ChatNotFound as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room or member not found") from error
+    except ChatValidationError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/rooms/{room_id}/visibility", status_code=status.HTTP_204_NO_CONTENT)
+def hide_chat_room(
+    room_id: int,
+    email: str = Depends(require_session),
+    db: Session = Depends(get_db),
+) -> Response:
+    try:
+        hide_room_for_user(db, room_id, email)
     except ChatNotFound as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat room not found") from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -91,7 +91,7 @@
             <form class="message-composer" id="message-form">
               <button class="composer-icon" type="button" aria-label="Add attachment">＋</button>
               <input id="message-input" type="text" placeholder="Message..." autocomplete="off" aria-label="Message" />
-              <button class="send-button" type="submit" aria-label="Send message">➤</button>
+              <button class="send-button" id="send-button" type="submit" aria-label="Send message">➤</button>
             </form>
           </div>
         </section>
@@ -146,6 +146,34 @@
         <div class="modal-actions">
           <button class="secondary-button" id="cancel-leave-room" type="button">No</button>
           <button class="danger-button" id="confirm-leave-room" type="button">Yes, leave</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="remove-member-modal" hidden>
+      <section class="new-chat-modal leave-room-modal" role="dialog" aria-modal="true" aria-labelledby="remove-member-title">
+        <div class="modal-heading">
+          <h2 id="remove-member-title">Remove chat member?</h2>
+          <button class="modal-close" id="close-remove-member" type="button" aria-label="Close remove member confirmation">×</button>
+        </div>
+        <p class="confirmation-copy" id="remove-member-copy"></p>
+        <div class="modal-actions">
+          <button class="secondary-button" id="cancel-remove-member" type="button">No</button>
+          <button class="danger-button" id="confirm-remove-member" type="button">Yes, remove</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="hide-room-modal" hidden>
+      <section class="new-chat-modal leave-room-modal" role="dialog" aria-modal="true" aria-labelledby="hide-room-title">
+        <div class="modal-heading">
+          <h2 id="hide-room-title">Remove chat?</h2>
+          <button class="modal-close" id="close-hide-room" type="button" aria-label="Close remove chat confirmation">×</button>
+        </div>
+        <p class="confirmation-copy">Are you sure you want to remove this chat? This action cannot be undone.</p>
+        <div class="modal-actions">
+          <button class="secondary-button" id="cancel-hide-room" type="button">No</button>
+          <button class="danger-button" id="confirm-hide-room" type="button">Yes, remove</button>
         </div>
       </section>
     </div>

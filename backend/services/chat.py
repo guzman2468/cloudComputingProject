@@ -78,6 +78,31 @@ def _assert_room_member(db: Session, room_id: int, user_id: int) -> None:
         raise ChatNotFound
 
 
+def _removed_room_access(db: Session, room_id: int, user_id: int) -> dict | None:
+    row = db.execute(
+        text(
+            """
+            SELECT removed_at
+            FROM public.chat_room_member_history
+            WHERE room_id = :room_id AND user_id = :user_id
+            """
+        ),
+        {"room_id": room_id, "user_id": user_id},
+    ).mappings().one_or_none()
+    return dict(row) if row else None
+
+
+def _assert_room_access(db: Session, room_id: int, user_id: int) -> dict | None:
+    try:
+        _assert_room_member(db, room_id, user_id)
+        return None
+    except ChatNotFound:
+        removed_access = _removed_room_access(db, room_id, user_id)
+        if not removed_access:
+            raise
+        return removed_access
+
+
 def list_user_rooms(db: Session, email: str) -> list[dict]:
     user = _get_user(db, email)
     if not user:
@@ -91,13 +116,20 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
                 cr.name,
                 cr.created_at,
                 creator.email AS created_by_email,
+                current_member.user_id AS current_member_user_id,
                 latest.content AS last_content,
                 latest.created_at AS last_created_at,
                 latest.sender_email AS last_sender_email
             FROM public.chat_rooms cr
-            JOIN public.room_members current_member
+            LEFT JOIN public.room_members current_member
               ON current_member.room_id = cr.id
              AND current_member.user_id = :user_id
+            LEFT JOIN public.chat_room_member_history removed_member
+              ON removed_member.room_id = cr.id
+             AND removed_member.user_id = :user_id
+            LEFT JOIN public.chat_room_hidden hidden_chat
+              ON hidden_chat.room_id = cr.id
+             AND hidden_chat.user_id = :user_id
             JOIN public.users creator ON creator.id = cr.created_by
             LEFT JOIN LATERAL (
                 SELECT m.content, m.created_at, sender.email AS sender_email
@@ -107,6 +139,8 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
                 ORDER BY m.created_at DESC, m.id DESC
                 LIMIT 1
             ) latest ON TRUE
+            WHERE hidden_chat.user_id IS NULL
+              AND (current_member.user_id IS NOT NULL OR removed_member.user_id IS NOT NULL)
             ORDER BY COALESCE(latest.created_at, cr.created_at) DESC, cr.id DESC
             """
         ),
@@ -121,6 +155,7 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
             "created_by_email": row["created_by_email"],
             "created_at": row["created_at"],
             "members": _get_room_members(db, row["id"]),
+            "is_removed": row["current_member_user_id"] is None,
             "last_message": None,
         }
         if row["last_content"] is not None:
@@ -151,15 +186,23 @@ def search_user_rooms(db: Session, query: str, email: str) -> list[dict]:
             """
             SELECT DISTINCT cr.id
             FROM public.chat_rooms cr
-            JOIN public.room_members current_member
+            LEFT JOIN public.room_members current_member
               ON current_member.room_id = cr.id
              AND current_member.user_id = :user_id
+            LEFT JOIN public.chat_room_member_history removed_member
+              ON removed_member.room_id = cr.id
+             AND removed_member.user_id = :user_id
+            LEFT JOIN public.chat_room_hidden hidden_chat
+              ON hidden_chat.room_id = cr.id
+             AND hidden_chat.user_id = :user_id
             LEFT JOIN public.room_members searched_member ON searched_member.room_id = cr.id
             LEFT JOIN public.users member_user ON member_user.id = searched_member.user_id
-            WHERE cr.name ~* :search_pattern
+            WHERE hidden_chat.user_id IS NULL
+              AND (current_member.user_id IS NOT NULL OR removed_member.user_id IS NOT NULL)
+              AND (cr.name ~* :search_pattern
                OR member_user.first_name ~* :search_pattern
                OR member_user.last_name ~* :search_pattern
-               OR split_part(member_user.email, '@', 1) ~* :search_pattern
+               OR split_part(member_user.email, '@', 1) ~* :search_pattern)
             """
         ),
         {"user_id": user["id"], "search_pattern": search_pattern},
@@ -280,6 +323,24 @@ def add_room_member(db: Session, room_id: int, member_email: str, current_email:
             db.execute(
                 text(
                     """
+                    DELETE FROM public.chat_room_member_history
+                    WHERE room_id = :room_id AND user_id = :user_id
+                    """
+                ),
+                {"room_id": room_id, "user_id": member["id"]},
+            )
+            db.execute(
+                text(
+                    """
+                    DELETE FROM public.chat_room_hidden
+                    WHERE room_id = :room_id AND user_id = :user_id
+                    """
+                ),
+                {"room_id": room_id, "user_id": member["id"]},
+            )
+            db.execute(
+                text(
+                    """
                     INSERT INTO public.room_members (room_id, user_id)
                     VALUES (:room_id, :user_id)
                     """
@@ -305,6 +366,82 @@ def add_room_member(db: Session, room_id: int, member_email: str, current_email:
     if not room:
         raise ChatNotFound
     return room
+
+
+def remove_room_member(db: Session, room_id: int, member_email: str, current_email: str) -> dict:
+    creator = _get_user(db, current_email)
+    target = _get_user(db, member_email.strip().lower())
+    if not creator or not target:
+        raise ChatNotFound
+    _assert_room_member(db, room_id, creator["id"])
+
+    room_owner = db.execute(
+        text("SELECT created_by FROM public.chat_rooms WHERE id = :room_id"),
+        {"room_id": room_id},
+    ).scalar_one_or_none()
+    if room_owner != creator["id"] or target["id"] == creator["id"]:
+        raise ChatValidationError("Only the room creator can remove other members")
+
+    target_is_member = db.execute(
+        text("SELECT 1 FROM public.room_members WHERE room_id = :room_id AND user_id = :user_id"),
+        {"room_id": room_id, "user_id": target["id"]},
+    ).first()
+    if not target_is_member:
+        raise ChatNotFound
+
+    member_emails = get_room_member_emails(db, room_id)
+    system_message = db.execute(
+        text(
+            """
+            INSERT INTO public.messages (room_id, sender_id, content)
+            VALUES (:room_id, :sender_id, :content)
+            RETURNING created_at
+            """
+        ),
+        {
+            "room_id": room_id,
+            "sender_id": creator["id"],
+            "content": f"{SYSTEM_MESSAGE_PREFIX}{target['first_name']} {target['last_name']} has been removed from the chat",
+        },
+    ).mappings().one()
+    db.execute(
+        text(
+            """
+            INSERT INTO public.chat_room_member_history (room_id, user_id, removed_at)
+            VALUES (:room_id, :user_id, :removed_at)
+            ON CONFLICT (room_id, user_id) DO UPDATE SET removed_at = EXCLUDED.removed_at
+            """
+        ),
+        {"room_id": room_id, "user_id": target["id"], "removed_at": system_message["created_at"]},
+    )
+    db.execute(
+        text("DELETE FROM public.room_members WHERE room_id = :room_id AND user_id = :user_id"),
+        {"room_id": room_id, "user_id": target["id"]},
+    )
+    db.commit()
+    return {
+        "member_emails": member_emails,
+        "removed_email": target["email"],
+        "removed_name": f"{target['first_name']} {target['last_name']}",
+    }
+
+
+def hide_room_for_user(db: Session, room_id: int, email: str) -> None:
+    user = _get_user(db, email)
+    if not user:
+        raise ChatNotFound
+    _assert_room_access(db, room_id, user["id"])
+    db.execute(
+        text(
+            """
+            INSERT INTO public.chat_room_hidden (room_id, user_id)
+            VALUES (:room_id, :user_id)
+            ON CONFLICT (room_id, user_id) DO NOTHING
+            """
+        ),
+        {"room_id": room_id, "user_id": user["id"]},
+    )
+    db.commit()
 
 
 def leave_room(db: Session, room_id: int, email: str) -> list[str]:
@@ -343,7 +480,7 @@ def list_messages(db: Session, room_id: int, email: str) -> list[dict]:
     user = _get_user(db, email)
     if not user:
         raise ChatNotFound
-    _assert_room_member(db, room_id, user["id"])
+    _assert_room_access(db, room_id, user["id"])
     rows = db.execute(
         text(
             """

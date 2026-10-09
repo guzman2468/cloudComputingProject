@@ -12,25 +12,10 @@
   - **Vanilla HTML, CSS, and JavaScript** — Frontend
   - **Docker** — Reserved for the AWS ECS deployment workflow
 
-  ## Current Project Status
-
-  The project currently includes:
-
-  - A FastAPI application
-  - A Supabase PostgreSQL connection
-  - A database connectivity test endpoint
-  - A static frontend landing page
-  - Local startup scripts for macOS/Linux and Windows
-  - Docker configuration reserved for AWS ECS deployment
-
   The following features are planned but are not fully implemented yet:
-
-  - User authentication
-  - Chat conversations
-  - Message persistence
+  
   - Photo uploads
   - S3 integration
-  - Database models and migrations
   - Automated tests
   - AWS ECS deployment configuration
 

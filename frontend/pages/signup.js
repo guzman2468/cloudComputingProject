@@ -103,9 +103,25 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      formMessage.textContent = "Account created successfully. You can now log in.";
+      formMessage.textContent = "Account created successfully. Logging you in...";
       formMessage.classList.add("success");
-      form.reset();
+      
+      const loginResponse = await fetch("/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.value.trim().toLowerCase(),
+          password: password.value,
+        }),
+      });
+      const loginResult = await loginResponse.json();
+
+      if (loginResponse.ok) {
+        window.location.href = "/home";
+      } else {
+        formMessage.textContent = "Account created, but automatic login failed. Please log in manually.";
+        formMessage.classList.remove("success");
+      }
     } catch (error) {
       formMessage.textContent = "Unable to reach the server. Please try again.";
     } finally {

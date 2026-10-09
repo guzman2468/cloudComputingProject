@@ -234,9 +234,7 @@ def create_room(db: Session, request: CreateRoomRequest, current_email: str) -> 
     if found_emails != requested_emails:
         raise ChatValidationError("One or more selected users could not be found")
 
-    room_name = request.name.strip() if request.name and request.name.strip() else ", ".join(
-        f"{user['first_name']} {user['last_name']}" for user in users
-    )
+    room_name = request.name.strip()[:120] if request.name and request.name.strip() else ""
     room_row = db.execute(
         text(
             """
@@ -245,7 +243,7 @@ def create_room(db: Session, request: CreateRoomRequest, current_email: str) -> 
             RETURNING id, name, created_at
             """
         ),
-        {"name": room_name[:120], "created_by": current_user["id"]},
+        {"name": room_name, "created_by": current_user["id"]},
     ).mappings().one()
 
     for user in users:

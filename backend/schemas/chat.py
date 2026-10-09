@@ -20,7 +20,7 @@ class LastMessage(BaseModel):
 
 class ChatRoom(BaseModel):
     id: int
-    name: str
+    name: str | None = None
     created_by_email: str
     created_at: datetime
     members: list[RoomMember]

@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const initials = (name) => name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   const setMenuOpen = (isOpen) => { profileButton.setAttribute("aria-expanded", String(isOpen)); profileDropdown.hidden = !isOpen; };
   const roomColor = (room) => ["#d0d0d0", "#a8a8a8", "#eeeeee", "#777777"][Number(room.id) % 4];
-  const roomName = (room) => room.name || room.members.map((member) => `${member.first_name} ${member.last_name}`).join(", ");
+  const roomName = (room) => room.name || room.members.filter((m) => m.email.toLowerCase() !== currentUserEmail.toLowerCase()).map((member) => `${member.first_name} ${member.last_name}`).join(", ") || "Just You";
   const lastMessageText = (room) => room.last_message?.content || "No messages yet";
   const formatTime = (value) => {
     if (!value) return "";
@@ -70,8 +70,9 @@ document.addEventListener("DOMContentLoaded", () => {
           </span>
           <span class="conversation-time">${escapeHtml(formatTime(room.last_message?.created_at || room.created_at))}</span>
         </button>
-        <button class="conversation-remove-button" type="button" data-hide-room-id="${room.id}" aria-label="Remove ${escapeHtml(roomName(room))} from your chat list" title="Remove chat from list">×</button>
+        <button class="conversation-remove-button" type="button" data-hide-room-id="${room.id}" aria-label="Remove ${escapeHtml(roomName(room))} from your chat list" title="Remove chat from list"><i data-lucide="x"></i></button>
       </div>`).join("") : '<p class="no-results">No conversations found.</p>';
+    if (window.lucide) lucide.createIcons();
   };
 
   const showEmptyChat = () => {
@@ -330,7 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const fullName = `${member.first_name} ${member.last_name}`;
       const isCurrentUser = member.email.toLowerCase() === currentUserEmail.toLowerCase();
       const removeButton = isCreator && !isCurrentUser ? `
-          <button class="remove-member-button" type="button" data-remove-member-email="${escapeHtml(member.email)}" aria-label="Remove ${escapeHtml(fullName)} from chat" title="Remove ${escapeHtml(fullName)} from chat">×</button>` : "";
+          <button class="remove-member-button" type="button" data-remove-member-email="${escapeHtml(member.email)}" aria-label="Remove ${escapeHtml(fullName)} from chat" title="Remove ${escapeHtml(fullName)} from chat"><i data-lucide="x"></i></button>` : "";
       return `
       <div class="contact-option">
         <span class="avatar" style="background: ${roomColor(room)}" aria-hidden="true">${escapeHtml(initials(fullName))}</span>
@@ -338,6 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ${removeButton}
       </div>`;
     }).join("");
+    if (window.lucide) lucide.createIcons();
   };
 
   const renderMemberSearchMessage = (message) => { memberContactList.innerHTML = `<p class="no-results">${message}</p>`; };

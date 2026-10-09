@@ -32,18 +32,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 28px;
+  padding: 12px 28px;
 }
 
 .brand-link {
   display: inline-flex;
   align-items: center;
+  gap: 12px;
+  text-decoration: none;
 }
 
 .brand-image {
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
+}
+
+.brand-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.05em;
 }
 
 .profile-menu {
@@ -151,7 +160,7 @@ body {
   display: flex;
   height: 100vh;
   min-height: 0;
-  padding: 96px 0 0;
+  padding: 64px 0 0;
 }
 
 .chat-app {
@@ -209,25 +218,56 @@ body {
 .back-button,
 .modal-close,
 .composer-icon,
-.send-button {
+.send-button,
+.conversation-remove-button,
+.remove-member-button,
+.rename-room-button {
   border: 0;
-  color: var(--text);
+  color: var(--muted);
   background: transparent;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible,
+.chat-info-button:hover,
+.chat-info-button:focus-visible,
+.chat-member-add-button:hover,
+.chat-member-add-button:focus-visible,
+.leave-room-button:hover,
+.leave-room-button:focus-visible,
+.back-button:hover,
+.back-button:focus-visible,
+.modal-close:hover,
+.modal-close:focus-visible,
+.composer-icon:hover,
+.composer-icon:focus-visible,
+.send-button:hover,
+.send-button:focus-visible,
+.conversation-remove-button:hover,
+.conversation-remove-button:focus-visible,
+.remove-member-button:hover,
+.remove-member-button:focus-visible,
+.rename-room-button:hover,
+.rename-room-button:focus-visible {
+  color: var(--accent);
+  outline: none;
 }
 
 .new-chat-button {
   width: 36px;
   height: 36px;
-  border: 1px solid var(--panel-border);
+  border: 0;
   border-radius: 50%;
-  font-size: 1.5rem;
-  line-height: 1;
 }
 
 .new-chat-button:hover,
 .new-chat-button:focus-visible {
-  border-color: var(--accent);
+  background: var(--panel-hover);
   color: var(--accent);
 }
 
@@ -318,26 +358,10 @@ input::placeholder {
 }
 
 .conversation-remove-button {
-  display: grid;
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
-  place-items: center;
   margin-right: 8px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  color: var(--muted);
-  background: transparent;
-  cursor: pointer;
-  font-size: 1.3rem;
-  line-height: 1;
-}
-
-.conversation-remove-button:hover,
-.conversation-remove-button:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-  outline: none;
 }
 
 .removed-label {
@@ -513,27 +537,15 @@ input::placeholder {
 }
 
 .chat-info-button {
-  color: var(--muted);
   font-size: 1.3rem;
 }
 
 .chat-member-add-button {
-  color: var(--muted);
   font-size: 1.45rem;
   line-height: 1;
 }
 
-.chat-info-button:hover,
-.chat-info-button:focus-visible,
-.chat-member-add-button:hover,
-.chat-member-add-button:focus-visible,
-.leave-room-button:hover,
-.leave-room-button:focus-visible {
-  color: var(--accent);
-}
-
 .leave-room-button {
-  color: var(--muted);
   font-size: 1.35rem;
   line-height: 1;
 }
@@ -639,7 +651,6 @@ input::placeholder {
 }
 
 .composer-icon {
-  color: var(--accent);
   font-size: 1.4rem;
 }
 
@@ -649,14 +660,7 @@ input::placeholder {
 }
 
 .send-button {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 50%;
-  color: #101010;
-  background: var(--accent);
-  font-size: 0.85rem;
+  font-size: 1.2rem;
 }
 
 .send-button:disabled {
@@ -915,17 +919,17 @@ input::placeholder {
 
 @media (max-width: 560px) {
   .site-header {
-    padding: 16px 18px;
+    padding: 12px 18px;
   }
 
   .chat-shell {
     height: 100vh;
-    padding: 84px 0 0;
+    padding: 64px 0 0;
   }
 
   .chat-app {
     grid-template-columns: minmax(0, 1fr);
-    height: calc(100vh - 84px);
+    height: calc(100vh - 64px);
     min-height: 0;
     border-radius: 0;
   }

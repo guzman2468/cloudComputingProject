@@ -29,6 +29,11 @@ S3_SECRET_ACCESS_KEY=<SecretAccessKey output>
 The secret access key is only returned when the stack creates the key. Treat it
 as a development secret and do not commit it.
 
+**IMPORTANT: Always reuse the same CloudFormation stack name when updating the
+development environment. Using a different stack name creates a new S3 bucket,
+IAM user, access key, and secret access key. The previous stack and its IAM user
+will remain until the previous stack is deleted.**
+
 ## Production prerequisites
 
 - VPC with at least two public and two private subnets.

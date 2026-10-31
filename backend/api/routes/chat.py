@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from backend.api.routes.users import require_session
 from backend.schemas.chat import AddRoomMemberRequest, ChatRoom, CreateMessageRequest, CreateRoomRequest, MessageResponse, UpdateRoomRequest
+from backend.services.storage import create_upload_url
 from backend.services.chat import ChatNotFound, ChatValidationError, add_room_member, create_message, create_room, get_room_member_emails, hide_room_for_user, leave_room, list_messages, list_user_rooms, remove_room_member, rename_room, search_user_rooms
 from backend.services.chat_socket import chat_connection_manager
 from backend.core.security import SESSION_COOKIE, get_session_email
@@ -20,6 +21,21 @@ from backend.core.rate_limit import (
 )
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+@router.post("/attachments/presign")
+def presign_attachment(
+    filename: str = Query(min_length=1, max_length=255),
+    content_type: str = Query(min_length=1, max_length=100),
+    size: int = Query(gt=0, le=25 * 1024 * 1024),
+    _email: str = Depends(require_session),
+) -> dict:
+    try:
+        return create_upload_url(filename, content_type, size)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
 
 @router.websocket("/socket")
@@ -204,7 +220,10 @@ async def add_message(
     db: Session = Depends(get_db),
 ) -> MessageResponse:
     try:
-        message = create_message(db, room_id, message_request.content, email)
+        message = create_message(
+            db, room_id, message_request.content, email,
+            message_request.attachment.model_dump() if message_request.attachment else None,
+        )
         member_emails = get_room_member_emails(db, room_id)
         await chat_connection_manager.broadcast(
             member_emails,

@@ -11,11 +11,20 @@ class RoomMember(BaseModel):
     last_name: str
 
 
+class AttachmentResponse(BaseModel):
+    filename: str
+    content_type: str
+    size: int | None = None
+    url: str
+    download_url: str
+
+
 class LastMessage(BaseModel):
     content: str
     created_at: datetime
     sender_email: str
     is_system: bool = False
+    attachment: AttachmentResponse | None = None
 
 
 class ChatRoom(BaseModel):
@@ -49,7 +58,16 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
     is_system: bool = False
+    attachment: AttachmentResponse | None = None
+
+
+class AttachmentInput(BaseModel):
+    object_key: str = Field(min_length=1, max_length=300)
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=1, max_length=100)
+    size: int = Field(gt=0, le=25 * 1024 * 1024)
 
 
 class CreateMessageRequest(BaseModel):
-    content: str = Field(min_length=1, max_length=5000)
+    content: str = Field(default="", max_length=5000)
+    attachment: AttachmentInput | None = None

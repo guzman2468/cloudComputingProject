@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#090909" />
     <title>Home | MavChat</title>
-    <link rel="stylesheet" href="/static/pages/home.css" />
+    <link rel="stylesheet" href="/static/pages/home.css?v=attachments2" />
   </head>
   <body>
     <header class="site-header">
@@ -89,15 +89,35 @@
 
             <div class="message-list" id="message-list" aria-live="polite"></div>
 
+            <div class="attachment-preview" id="attachment-preview" hidden>
+              <div class="attachment-preview-media">
+                <img id="attachment-preview-image" alt="" />
+              </div>
+              <span id="attachment-preview-name"></span>
+              <button class="attachment-preview-remove" id="remove-attachment" type="button" aria-label="Remove selected attachment" title="Remove selected attachment"><i data-lucide="x"></i></button>
+            </div>
             <form class="message-composer" id="message-form">
-              <button class="composer-icon" type="button" aria-label="Add attachment"><i data-lucide="paperclip"></i></button>
               <input id="message-input" type="text" placeholder="Message..." autocomplete="off" aria-label="Message" />
+              <input id="attachment-input" class="visually-hidden" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" />
+              <button class="composer-icon" id="attachment-button" type="button" aria-label="Add image" title="Add JPG, JPEG, or PNG image"><i data-lucide="plus"></i></button>
               <button class="send-button" id="send-button" type="submit" aria-label="Send message"><i data-lucide="send"></i></button>
             </form>
+            <p class="attachment-status" id="attachment-status" aria-live="polite"></p>
           </div>
         </section>
       </section>
     </main>
+
+    <div class="modal-backdrop attachment-viewer" id="attachment-viewer" hidden>
+      <section class="attachment-viewer-dialog" role="dialog" aria-modal="true" aria-labelledby="attachment-viewer-name">
+        <div class="modal-heading">
+          <h2 id="attachment-viewer-name">Image preview</h2>
+          <button class="modal-close" id="close-attachment-viewer" type="button" aria-label="Close image preview"><i data-lucide="x"></i></button>
+        </div>
+        <img id="attachment-viewer-image" alt="Expanded attachment" />
+        <a class="primary-button attachment-download" id="download-attachment" href="#" download>Download image</a>
+      </section>
+    </div>
 
     <div class="modal-backdrop" id="new-chat-modal" hidden>
       <section class="new-chat-modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title">
@@ -180,7 +200,7 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/static/pages/home.js"></script>
+    <script src="/static/pages/home.js?v=attachments2"></script>
     <script>
       lucide.createIcons();
     </script>

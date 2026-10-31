@@ -358,6 +358,10 @@
   - Private API keys
   - Other sensitive credentials
 
+  For browser uploads, configure the bucket CORS policy to allow `PUT` and `GET`
+  from the MavChat frontend origin and expose the `ETag` response header. Keep the
+  bucket private; the backend returns short-lived presigned upload and download URLs.
+
   ———
 
   # Docker and AWS ECS

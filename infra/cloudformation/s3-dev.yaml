@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Development S3 bucket for MavChat attachments.
+
+Parameters:
+  AppOrigin:
+    Type: String
+    Default: http://localhost:8000
+
+Resources:
+  MavChatDevAttachmentsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - !Ref AppOrigin
+            AllowedMethods: [GET, PUT, HEAD]
+            AllowedHeaders: ['*']
+            ExposedHeaders: [ETag]
+            MaxAge: 3000
+
+Outputs:
+  BucketName:
+    Value: !Ref MavChatDevAttachmentsBucket
+  BucketArn:
+    Value: !GetAtt MavChatDevAttachmentsBucket.Arn

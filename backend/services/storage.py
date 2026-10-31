@@ -18,12 +18,12 @@ ALLOWED_ATTACHMENT_TYPES = {
 }
 
 
-def _settings() -> tuple[str, str, str | None, str, str]:
+def _settings() -> tuple[str, str, str | None, str | None, str | None]:
     bucket = os.getenv("S3_BUCKET_NAME")
     region = os.getenv("S3_REGION")
     access_key = os.getenv("S3_ACCESS_KEY_ID")
     secret_key = os.getenv("S3_SECRET_ACCESS_KEY")
-    if not bucket or not region or not access_key or not secret_key:
+    if not bucket or not region:
         raise RuntimeError("S3 storage is not configured")
     return bucket, region, os.getenv("S3_ENDPOINT_URL"), access_key, secret_key
 
@@ -32,9 +32,10 @@ def _client():
     bucket, region, endpoint, access_key, secret_key = _settings()
     client_options: dict[str, str] = {
         "region_name": region,
-        "aws_access_key_id": access_key,
-        "aws_secret_access_key": secret_key,
     }
+    if access_key and secret_key:
+        client_options["aws_access_key_id"] = access_key
+        client_options["aws_secret_access_key"] = secret_key
     if endpoint:
         client_options["endpoint_url"] = endpoint
     return boto3.client("s3", **client_options)

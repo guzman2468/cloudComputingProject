@@ -33,8 +33,34 @@ Resources:
             ExposedHeaders: [ETag]
             MaxAge: 3000
 
+  MavChatDevS3User:
+    Type: AWS::IAM::User
+    Properties:
+      Policies:
+        - PolicyName: MavChatDevAttachmentAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub '${MavChatDevAttachmentsBucket.Arn}/chat-attachments/*'
+
+  MavChatDevAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref MavChatDevS3User
+      Status: Active
+
 Outputs:
   BucketName:
     Value: !Ref MavChatDevAttachmentsBucket
   BucketArn:
     Value: !GetAtt MavChatDevAttachmentsBucket.Arn
+  Region:
+    Value: !Ref AWS::Region
+  AccessKeyId:
+    Value: !Ref MavChatDevAccessKey
+  SecretAccessKey:
+    Value: !GetAtt MavChatDevAccessKey.SecretAccessKey

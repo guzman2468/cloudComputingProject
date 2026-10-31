@@ -15,8 +15,19 @@ aws cloudformation deploy \
   --parameter-overrides AppOrigin=http://localhost:8000
 ```
 
-Use the stack's `BucketName` output as `S3_BUCKET_NAME` in local `.env`. Local
-development still uses `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`.
+The development template also creates a narrowly scoped IAM user and access
+key. Copy the stack outputs into local `.env`:
+
+```env
+S3_ENDPOINT_URL=
+S3_REGION=<Region output>
+S3_BUCKET_NAME=<BucketName output>
+S3_ACCESS_KEY_ID=<AccessKeyId output>
+S3_SECRET_ACCESS_KEY=<SecretAccessKey output>
+```
+
+The secret access key is only returned when the stack creates the key. Treat it
+as a development secret and do not commit it.
 
 ## Production prerequisites
 

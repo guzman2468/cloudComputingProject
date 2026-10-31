@@ -1,13 +1,16 @@
 """Database operations for chat rooms, room membership, and messages."""
 
+import json
 import re
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
 from backend.schemas.chat import CreateRoomRequest
+from backend.services.storage import create_download_url, validate_attachment
 
 SYSTEM_MESSAGE_PREFIX = "__MAVCHAT_SYSTEM__ "
+ATTACHMENT_MESSAGE_PREFIX = "__MAVCHAT_ATTACHMENT__ "
 
 
 class ChatNotFound(Exception):
@@ -22,6 +25,31 @@ def _message_payload(content: str) -> tuple[str, bool]:
     if content.startswith(SYSTEM_MESSAGE_PREFIX):
         return content[len(SYSTEM_MESSAGE_PREFIX):], True
     return content, False
+
+
+def _attachment_payload(content: str) -> dict | None:
+    if not content.startswith(ATTACHMENT_MESSAGE_PREFIX):
+        return None
+    try:
+        attachment = json.loads(content[len(ATTACHMENT_MESSAGE_PREFIX):])
+        attachment["url"] = create_download_url(attachment["object_key"], attachment["filename"])
+        attachment["download_url"] = create_download_url(
+            attachment["object_key"], attachment["filename"], download=True
+        )
+        attachment.pop("object_key", None)
+        return attachment
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError, RuntimeError):
+        return None
+
+
+def _attachment_response(object_key: str, filename: str, content_type: str | None, size: int | None = None) -> dict:
+    return {
+        "filename": filename,
+        "content_type": content_type or "application/octet-stream",
+        "size": size,
+        "url": create_download_url(object_key, filename),
+        "download_url": create_download_url(object_key, filename, download=True),
+    }
 
 
 def _get_user(db: Session, email: str) -> dict[str, int | str] | None:
@@ -119,7 +147,10 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
                 current_member.user_id AS current_member_user_id,
                 latest.content AS last_content,
                 latest.created_at AS last_created_at,
-                latest.sender_email AS last_sender_email
+                latest.sender_email AS last_sender_email,
+                attachment.s3_object_key AS attachment_object_key,
+                attachment.original_filename AS attachment_filename,
+                attachment.content_type AS attachment_content_type
             FROM public.chat_rooms cr
             LEFT JOIN public.room_members current_member
               ON current_member.room_id = cr.id
@@ -132,13 +163,14 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
              AND hidden_chat.user_id = :user_id
             JOIN public.users creator ON creator.id = cr.created_by
             LEFT JOIN LATERAL (
-                SELECT m.content, m.created_at, sender.email AS sender_email
+                SELECT m.id, m.content, m.created_at, sender.email AS sender_email
                 FROM public.messages m
                 JOIN public.users sender ON sender.id = m.sender_id
                 WHERE m.room_id = cr.id
                 ORDER BY m.created_at DESC, m.id DESC
                 LIMIT 1
             ) latest ON TRUE
+            LEFT JOIN public.attachments attachment ON attachment.message_id = latest.id
             WHERE hidden_chat.user_id IS NULL
               AND (current_member.user_id IS NOT NULL OR removed_member.user_id IS NOT NULL)
             ORDER BY COALESCE(latest.created_at, cr.created_at) DESC, cr.id DESC
@@ -160,11 +192,17 @@ def list_user_rooms(db: Session, email: str) -> list[dict]:
         }
         if row["last_content"] is not None:
             last_content, is_system = _message_payload(row["last_content"])
+            attachment = _attachment_response(
+                row["attachment_object_key"],
+                row["attachment_filename"],
+                row["attachment_content_type"],
+            ) if row["attachment_object_key"] else _attachment_payload(row["last_content"])
             room["last_message"] = {
-                "content": last_content,
+                "content": f"Attachment: {attachment['filename']}" if attachment else last_content,
                 "created_at": row["last_created_at"],
                 "sender_email": row["last_sender_email"],
                 "is_system": is_system,
+                "attachment": attachment,
             }
         rooms.append(room)
     return rooms
@@ -488,9 +526,13 @@ def list_messages(db: Session, room_id: int, email: str) -> list[dict]:
                 sender.email AS sender_email,
                 CONCAT(sender.first_name, ' ', sender.last_name) AS sender_name,
                 m.content,
-                m.created_at
+                m.created_at,
+                attachment.s3_object_key AS attachment_object_key,
+                attachment.original_filename AS attachment_filename,
+                attachment.content_type AS attachment_content_type
             FROM public.messages m
             JOIN public.users sender ON sender.id = m.sender_id
+            LEFT JOIN public.attachments attachment ON attachment.message_id = m.id
             WHERE m.room_id = :room_id
             ORDER BY m.created_at ASC, m.id ASC
             """
@@ -500,19 +542,36 @@ def list_messages(db: Session, room_id: int, email: str) -> list[dict]:
     messages = []
     for row in rows:
         message = dict(row)
-        message["content"], message["is_system"] = _message_payload(message["content"])
+        raw_content = message["content"]
+        object_key = message.pop("attachment_object_key")
+        filename = message.pop("attachment_filename")
+        content_type = message.pop("attachment_content_type")
+        message["attachment"] = _attachment_response(
+            object_key, filename, content_type,
+        ) if object_key else _attachment_payload(raw_content)
+        message["content"], message["is_system"] = _message_payload(raw_content)
+        if message["attachment"] and raw_content.startswith(ATTACHMENT_MESSAGE_PREFIX):
+            message["content"] = ""
         messages.append(message)
     return messages
 
 
-def create_message(db: Session, room_id: int, content: str, email: str) -> dict:
+def create_message(db: Session, room_id: int, content: str, email: str, attachment: dict | None = None) -> dict:
     user = _get_user(db, email)
     if not user:
         raise ChatNotFound
     _assert_room_member(db, room_id, user["id"])
     normalized_content = content.strip()
-    if not normalized_content:
-        raise ChatValidationError("Message content cannot be empty")
+    if not normalized_content and not attachment:
+        raise ChatValidationError("Message content or an attachment is required")
+    if attachment:
+        try:
+            validate_attachment(attachment["filename"], attachment["content_type"], attachment["size"])
+        except (KeyError, ValueError) as error:
+            raise ChatValidationError(str(error)) from error
+        if not attachment["object_key"].startswith("chat-attachments/"):
+            raise ChatValidationError("Invalid attachment")
+    stored_content = normalized_content
 
     row = db.execute(
         text(
@@ -522,8 +581,25 @@ def create_message(db: Session, room_id: int, content: str, email: str) -> dict:
             RETURNING id, room_id, created_at
             """
         ),
-        {"room_id": room_id, "sender_id": user["id"], "content": normalized_content},
+        {"room_id": room_id, "sender_id": user["id"], "content": stored_content},
     ).mappings().one()
+    if attachment:
+        db.execute(
+            text(
+                """
+                INSERT INTO public.attachments
+                    (message_id, uploaded_by, s3_object_key, original_filename, content_type)
+                VALUES (:message_id, :uploaded_by, :s3_object_key, :original_filename, :content_type)
+                """
+            ),
+            {
+                "message_id": row["id"],
+                "uploaded_by": user["id"],
+                "s3_object_key": attachment["object_key"],
+                "original_filename": attachment["filename"],
+                "content_type": attachment["content_type"],
+            },
+        )
     db.commit()
     return {
         "id": row["id"],
@@ -532,4 +608,7 @@ def create_message(db: Session, room_id: int, content: str, email: str) -> dict:
         "sender_name": f"{user['first_name']} {user['last_name']}",
         "content": normalized_content,
         "created_at": row["created_at"],
+        "attachment": _attachment_response(
+            attachment["object_key"], attachment["filename"], attachment["content_type"], attachment["size"]
+        ) if attachment else None,
     }

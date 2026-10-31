@@ -9,6 +9,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const messageList = document.querySelector("#message-list");
   const messageForm = document.querySelector("#message-form");
   const messageInput = document.querySelector("#message-input");
+  const attachmentInput = document.querySelector("#attachment-input");
+  const attachmentButton = document.querySelector("#attachment-button");
+  const attachmentStatus = document.querySelector("#attachment-status");
+  const attachmentPreview = document.querySelector("#attachment-preview");
+  const attachmentPreviewImage = document.querySelector("#attachment-preview-image");
+  const attachmentPreviewName = document.querySelector("#attachment-preview-name");
+  const attachmentViewer = document.querySelector("#attachment-viewer");
+  const attachmentViewerImage = document.querySelector("#attachment-viewer-image");
+  const attachmentViewerName = document.querySelector("#attachment-viewer-name");
+  const downloadAttachment = document.querySelector("#download-attachment");
   const newChatModal = document.querySelector("#new-chat-modal");
   const chatInfoModal = document.querySelector("#chat-info-modal");
   const addMemberModal = document.querySelector("#add-member-modal");
@@ -41,6 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let pendingSocketSync = false;
   let pendingRemoveMember = null;
   let pendingHideRoomId = null;
+  let selectedAttachment = null;
+  let selectedAttachmentUrl = null;
+  const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024;
+  const ALLOWED_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png"]);
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
@@ -79,6 +93,12 @@ document.addEventListener("DOMContentLoaded", () => {
     messageRequestId += 1;
     messageList.replaceChildren();
     messageInput.value = "";
+    selectedAttachment = null;
+    attachmentInput.value = "";
+    attachmentStatus.textContent = "";
+    attachmentPreview.hidden = true;
+    if (selectedAttachmentUrl) URL.revokeObjectURL(selectedAttachmentUrl);
+    selectedAttachmentUrl = null;
     document.querySelector("#active-avatar").textContent = "?";
     document.querySelector("#active-status").textContent = "MavChat";
     activeName.textContent = "Select a conversation";
@@ -113,9 +133,13 @@ document.addEventListener("DOMContentLoaded", () => {
       ${messages.map((message) => {
         if (message.is_system) return `<div class="system-message">${escapeHtml(message.content)}</div>`;
         const sent = message.sender_email.toLowerCase() === currentUserEmail.toLowerCase();
+        const attachment = message.attachment ? (message.attachment.content_type === "application/pdf"
+          ? `<a class="message-attachment" href="${escapeHtml(message.attachment.url)}" target="_blank" rel="noopener">📄 ${escapeHtml(message.attachment.filename)}</a>`
+          : `<button class="message-attachment image-attachment" type="button" data-image-url="${escapeHtml(message.attachment.url)}" data-download-url="${escapeHtml(message.attachment.download_url)}" data-image-name="${escapeHtml(message.attachment.filename)}"><img src="${escapeHtml(message.attachment.url)}" alt="${escapeHtml(message.attachment.filename)}" loading="lazy" /><span>${escapeHtml(message.attachment.filename)}</span></button>`
+        ) : "";
         return `<div class="message-row ${sent ? "sent" : "received"}">
           <div class="message-content">
-            <div class="message-bubble">${escapeHtml(message.content)}<span class="message-time">${escapeHtml(formatTime(message.created_at))}</span></div>
+            <div class="message-bubble">${attachment}${message.content ? `<div>${escapeHtml(message.content)}</div>` : ""}<span class="message-time">${escapeHtml(formatTime(message.created_at))}</span></div>
             <div class="message-author"><span class="message-author-avatar" aria-hidden="true">${escapeHtml(initials(message.sender_name))}</span><span>${escapeHtml(message.sender_name)}</span></div>
           </div>
         </div>`;
@@ -387,7 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === removeMemberModal) setRemoveMemberOpen(false);
     if (event.target === hideRoomModal) setHideRoomOpen(false);
   });
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setMenuOpen(false); setModalOpen(false); setChatInfoOpen(false); setAddMemberOpen(false); setLeaveRoomOpen(false); setRemoveMemberOpen(false); setHideRoomOpen(false); } });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") { setMenuOpen(false); setModalOpen(false); setChatInfoOpen(false); setAddMemberOpen(false); setLeaveRoomOpen(false); setRemoveMemberOpen(false); setHideRoomOpen(false); closeAttachmentViewer(); } });
   conversationList.addEventListener("click", async (event) => {
     const hideButton = event.target.closest("[data-hide-room-id]");
     if (hideButton) {
@@ -542,19 +566,104 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   document.querySelector("#back-button").addEventListener("click", () => chatApp.classList.remove("show-messages"));
+  document.querySelector("#remove-attachment").addEventListener("click", () => {
+    attachmentInput.value = "";
+    selectedAttachment = null;
+    attachmentPreview.hidden = true;
+    attachmentStatus.textContent = "";
+    if (selectedAttachmentUrl) URL.revokeObjectURL(selectedAttachmentUrl);
+    selectedAttachmentUrl = null;
+  });
+  const closeAttachmentViewer = () => { attachmentViewer.hidden = true; attachmentViewerImage.removeAttribute("src"); };
+  attachmentViewer.addEventListener("click", (event) => { if (event.target === attachmentViewer) closeAttachmentViewer(); });
+  document.querySelector("#close-attachment-viewer").addEventListener("click", closeAttachmentViewer);
+  messageList.addEventListener("click", (event) => {
+    const imageButton = event.target.closest("[data-image-url]");
+    if (!imageButton) return;
+    attachmentViewerImage.src = imageButton.dataset.imageUrl;
+    attachmentViewerImage.alt = imageButton.dataset.imageName;
+    attachmentViewerName.textContent = imageButton.dataset.imageName;
+    downloadAttachment.href = imageButton.dataset.downloadUrl;
+    downloadAttachment.download = imageButton.dataset.imageName;
+    attachmentViewer.hidden = false;
+  });
+  attachmentButton.addEventListener("click", () => {
+    if (!activeRoomId || document.querySelector("#message-input").disabled) return;
+    attachmentInput.click();
+  });
+  attachmentInput.addEventListener("change", () => {
+    const file = attachmentInput.files[0];
+    if (!file) return;
+    const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+    const validType = ALLOWED_ATTACHMENT_TYPES.has(file.type) && [".jpg", ".jpeg", ".png"].includes(extension);
+    if (!validType) {
+      attachmentInput.value = "";
+      selectedAttachment = null;
+      attachmentPreview.hidden = true;
+      attachmentStatus.textContent = "Choose a JPG, JPEG, or PNG image.";
+      return;
+    }
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      attachmentInput.value = "";
+      selectedAttachment = null;
+      attachmentPreview.hidden = true;
+      attachmentStatus.textContent = "Attachments must be 25 MB or smaller.";
+      return;
+    }
+    selectedAttachment = file;
+    if (selectedAttachmentUrl) URL.revokeObjectURL(selectedAttachmentUrl);
+    selectedAttachmentUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+    attachmentPreviewImage.hidden = !selectedAttachmentUrl;
+    if (selectedAttachmentUrl) attachmentPreviewImage.src = selectedAttachmentUrl;
+    attachmentPreviewName.textContent = file.name;
+    attachmentPreview.hidden = false;
+    attachmentStatus.textContent = file.type.startsWith("image/") ? "" : `${file.name} selected`;
+  });
   messageForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const content = messageInput.value.trim();
-    if (!content || !activeRoomId) return;
+    if ((!content && !selectedAttachment) || !activeRoomId) return;
     const room = conversations.find((item) => item.id === activeRoomId);
     if (room?.is_removed) return;
-    const response = await fetch(`/api/chat/rooms/${encodeURIComponent(activeRoomId)}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
-    if (!response.ok) return;
+    const file = selectedAttachment;
+    attachmentButton.disabled = true;
+    try {
+      let attachment;
+      if (file) {
+        attachmentStatus.textContent = "Uploading attachment...";
+        const params = new URLSearchParams({ filename: file.name, content_type: file.type, size: String(file.size) });
+        const presignResponse = await fetch(`/api/chat/attachments/presign?${params}`, { method: "POST" });
+        if (!presignResponse.ok) {
+          const error = await presignResponse.json().catch(() => ({}));
+          throw new Error(error.detail || "Unable to prepare upload");
+        }
+        const upload = await presignResponse.json();
+        const uploadResponse = await fetch(upload.upload_url, { method: "PUT", headers: { "Content-Type": upload.content_type }, body: file });
+        if (!uploadResponse.ok) throw new Error("Unable to upload attachment");
+        attachment = { object_key: upload.object_key, filename: file.name, content_type: file.type, size: file.size };
+      }
+      const response = await fetch(`/api/chat/rooms/${encodeURIComponent(activeRoomId)}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, attachment }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.detail || "Unable to send message");
+      }
+    } catch (error) {
+      attachmentStatus.textContent = error.message || "Unable to send attachment. Please try again.";
+      return;
+    } finally {
+      attachmentButton.disabled = false;
+    }
     messageInput.value = "";
+    attachmentInput.value = "";
+    selectedAttachment = null;
+    attachmentPreview.hidden = true;
+    if (selectedAttachmentUrl) URL.revokeObjectURL(selectedAttachmentUrl);
+    selectedAttachmentUrl = null;
+    attachmentStatus.textContent = "";
     await loadMessages(activeRoomId);
     await loadRooms();
   });

@@ -114,6 +114,14 @@
 
   start.bat
 
+  ## Running Tests
+
+  Run the test suite with:
+
+  ```bash
+  pytest
+  ```
+
   ## Local URLs
 
   Once the application is running:

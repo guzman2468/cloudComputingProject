@@ -32,23 +32,35 @@ def _attachment_payload(content: str) -> dict | None:
         return None
     try:
         attachment = json.loads(content[len(ATTACHMENT_MESSAGE_PREFIX):])
-        attachment["url"] = create_download_url(attachment["object_key"], attachment["filename"])
-        attachment["download_url"] = create_download_url(
-            attachment["object_key"], attachment["filename"], download=True
-        )
+        try:
+            attachment["url"] = create_download_url(attachment["object_key"], attachment["filename"])
+            attachment["download_url"] = create_download_url(
+                attachment["object_key"], attachment["filename"], download=True
+            )
+        except (RuntimeError, ValueError):
+            attachment["url"] = None
+            attachment["download_url"] = None
         attachment.pop("object_key", None)
         return attachment
-    except (ValueError, KeyError, TypeError, json.JSONDecodeError, RuntimeError):
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
         return None
 
 
 def _attachment_response(object_key: str, filename: str, content_type: str | None, size: int | None = None) -> dict:
+    url = None
+    download_url = None
+    try:
+        url = create_download_url(object_key, filename)
+        download_url = create_download_url(object_key, filename, download=True)
+    except (RuntimeError, ValueError):
+        url = None
+        download_url = None
     return {
         "filename": filename,
         "content_type": content_type or "application/octet-stream",
         "size": size,
-        "url": create_download_url(object_key, filename),
-        "download_url": create_download_url(object_key, filename, download=True),
+        "url": url,
+        "download_url": download_url,
     }
 
 

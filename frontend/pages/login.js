@@ -69,7 +69,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (!response.ok) {
-        formMessage.textContent = result.detail || "Invalid credentials, please try again.";
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After");
+          formMessage.textContent = retryAfter
+            ? `Too many attempts. Please wait ${retryAfter} seconds before trying again.`
+            : (result.detail || "Too many attempts. Please try again later.");
+        } else {
+          formMessage.textContent = result.detail || "Invalid credentials, please try again.";
+        }
         return;
       }
 

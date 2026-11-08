@@ -6,4 +6,5 @@ __pycache__/
 app/static/*
 !app/static/.gitkeep
 app/templates/*
+.pytest_cache/
 .vscode/

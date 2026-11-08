@@ -11,6 +11,7 @@ import time
 SESSION_COOKIE = "mavchat_session"
 SESSION_MAX_AGE = 60 * 60
 SESSION_SECRET = os.getenv("SESSION_SECRET", "development-secret-change-me").encode("utf-8")
+SESSION_COOKIE_SECURE = os.getenv("SECURE_COOKIES", "false").strip().lower() in {"true", "1", "yes"}
 
 
 def hash_password(password: str) -> str:

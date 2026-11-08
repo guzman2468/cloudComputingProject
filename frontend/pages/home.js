@@ -133,14 +133,18 @@ document.addEventListener("DOMContentLoaded", () => {
       ${messages.map((message) => {
         if (message.is_system) return `<div class="system-message">${escapeHtml(message.content)}</div>`;
         const sent = message.sender_email.toLowerCase() === currentUserEmail.toLowerCase();
-        const attachment = message.attachment ? (message.attachment.content_type === "application/pdf"
-          ? `<a class="message-attachment" href="${escapeHtml(message.attachment.url)}" target="_blank" rel="noopener">📄 ${escapeHtml(message.attachment.filename)}</a>`
-          : `<button class="message-attachment image-attachment" type="button" data-image-url="${escapeHtml(message.attachment.url)}" data-download-url="${escapeHtml(message.attachment.download_url)}" data-image-name="${escapeHtml(message.attachment.filename)}"><img src="${escapeHtml(message.attachment.url)}" alt="${escapeHtml(message.attachment.filename)}" loading="lazy" /><span>${escapeHtml(message.attachment.filename)}</span></button>`
+        const attachment = message.attachment ? (
+          !message.attachment.url
+            ? `<div class="message-attachment attachment-unavailable">📎 ${escapeHtml(message.attachment.filename)} <span class="attachment-note">(file unavailable)</span></div>`
+            : (message.attachment.content_type === "application/pdf"
+              ? `<a class="message-attachment" href="${escapeHtml(message.attachment.url)}" target="_blank" rel="noopener">📄 ${escapeHtml(message.attachment.filename)}</a>`
+              : `<button class="message-attachment image-attachment" type="button" data-image-url="${escapeHtml(message.attachment.url)}" data-download-url="${escapeHtml(message.attachment.download_url)}" data-image-name="${escapeHtml(message.attachment.filename)}"><img src="${escapeHtml(message.attachment.url)}" alt="${escapeHtml(message.attachment.filename)}" loading="lazy" /><span>${escapeHtml(message.attachment.filename)}</span></button>`
+            )
         ) : "";
         return `<div class="message-row ${sent ? "sent" : "received"}">
           <div class="message-content">
-            <div class="message-bubble">${attachment}${message.content ? `<div>${escapeHtml(message.content)}</div>` : ""}<span class="message-time">${escapeHtml(formatTime(message.created_at))}</span></div>
-            <div class="message-author"><span class="message-author-avatar" aria-hidden="true">${escapeHtml(initials(message.sender_name))}</span><span>${escapeHtml(message.sender_name)}</span></div>
+            <div class="message-author"><span class="message-author-avatar" aria-hidden="true">${escapeHtml(initials(message.sender_name))}</span><span>${escapeHtml(message.sender_name)}</span><span class="message-time">${escapeHtml(formatTime(message.created_at))}</span></div>
+            <div class="message-bubble">${attachment}${message.content ? `<div>${escapeHtml(message.content)}</div>` : ""}</div>
           </div>
         </div>`;
       }).join("")}
@@ -635,6 +639,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const presignResponse = await fetch(`/api/chat/attachments/presign?${params}`, { method: "POST" });
         if (!presignResponse.ok) {
           const error = await presignResponse.json().catch(() => ({}));
+          if (presignResponse.status === 503) {
+            throw new Error("File attachments are currently disabled (S3 storage not configured).");
+          }
           throw new Error(error.detail || "Unable to prepare upload");
         }
         const upload = await presignResponse.json();

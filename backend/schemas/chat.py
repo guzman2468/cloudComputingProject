@@ -15,8 +15,8 @@ class AttachmentResponse(BaseModel):
     filename: str
     content_type: str
     size: int | None = None
-    url: str
-    download_url: str
+    url: str | None = None
+    download_url: str | None = None
 
 
 class LastMessage(BaseModel):

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, R
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from backend.core.security import SESSION_COOKIE, SESSION_MAX_AGE, create_session_token, get_session_email
+from backend.core.security import SESSION_COOKIE, SESSION_COOKIE_SECURE, SESSION_MAX_AGE, create_session_token, get_session_email
 from backend.schemas.users import UserCreate, UserCreated, UserLogin, UserLoggedIn, UserProfile, UserSearchResult
 from backend.services.users import (
     EmailAlreadyRegistered,
@@ -46,7 +46,7 @@ def login_user(
             max_age=SESSION_MAX_AGE,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=SESSION_COOKIE_SECURE,
         )
         return user
     except InvalidCredentials as error:

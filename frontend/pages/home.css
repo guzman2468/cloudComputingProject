@@ -221,7 +221,8 @@ body {
 .send-button,
 .conversation-remove-button,
 .remove-member-button,
-.rename-room-button {
+.rename-room-button,
+.attachment-preview-remove {
   border: 0;
   color: var(--muted);
   background: transparent;
@@ -253,7 +254,9 @@ body {
 .remove-member-button:hover,
 .remove-member-button:focus-visible,
 .rename-room-button:hover,
-.rename-room-button:focus-visible {
+.rename-room-button:focus-visible,
+.attachment-preview-remove:hover,
+.attachment-preview-remove:focus-visible {
   color: var(--accent);
   outline: none;
 }
@@ -607,6 +610,19 @@ input::placeholder {
   text-decoration: underline;
 }
 
+.message-attachment.attachment-unavailable {
+  cursor: default;
+  text-decoration: none;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.attachment-note {
+  font-size: 0.85em;
+  font-style: italic;
+  opacity: 0.75;
+}
+
 .image-attachment {
   text-decoration: none;
 }
@@ -627,13 +643,9 @@ input::placeholder {
 
 .message-time {
   display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.66rem;
 }
 
 .message-row.sent .message-time {
-  color: var(--text);
   text-align: right;
 }
 
@@ -753,24 +765,36 @@ input::placeholder {
 .attachment-preview-remove {
   position: absolute;
   z-index: 2;
-  top: 0;
-  right: 0;
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
+  top: 10px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
   border: 0;
-  border-radius: 50%;
-  color: #fff;
-  background: rgb(0 0 0 / 65%);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.attachment-preview-remove svg,
+.attachment-preview-remove i {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .attachment-preview-remove:hover,
 .attachment-preview-remove:focus-visible {
   color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  background: transparent;
+  outline: none;
 }
 
 .attachment-viewer-dialog {
